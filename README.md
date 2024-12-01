@@ -2,6 +2,9 @@
 
 A simple, responsive web application that allows users to watch multiple YouTube videos simultaneously in a grid layout.
 
+![Screenshot 2024-11-06 180450](https://github.com/user-attachments/assets/513b0103-22e5-42b8-a7e2-2852c157181c)
+
+
 ## Features
 
 - Add multiple YouTube videos to a single page
