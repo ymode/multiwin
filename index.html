@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube Multiscreen Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    /* ———  Layout & Typography  ——— */
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#111}
+    header{padding:2rem 1rem}
+    #controls{max-width:1200px;margin:0 auto;display:flex;gap:1rem}
+    input[type="text"]{
+      flex:1;
+      padding:.8rem 1rem;
+      font-size:1rem;
+      border:1px solid #ccc;
+      border-radius:6px;
+    }
+    button#addBtn{
+      padding:.8rem 1.5rem;
+      font-size:1rem;
+      border:none;
+      border-radius:6px;
+      background:#e62117;        /* YouTube red */
+      color:#fff;cursor:pointer;
+      transition:background .2s;
+    }
+    button#addBtn:hover{background:#c51c12}
+
+    /* ———  Video grid  ——— */
+    #grid{
+      display:grid;
+      gap:1rem;
+      padding:1rem 1rem 3rem;
+      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+      max-width:1600px;margin:0 auto;
+    }
+    .video-wrapper{
+      position:relative;
+      padding-top:56.25%;         /* 16 : 9 */
+      border-radius:8px;
+      overflow:hidden;
+      background:#000;
+    }
+    .video-wrapper iframe{
+      position:absolute;inset:0;
+      width:100%;height:100%;
+      border:0;
+    }
+
+    /* ———  Close (“×”) button  ——— */
+    .close-btn{
+      position:absolute;
+      top:6px;right:6px;
+      width:26px;height:26px;
+      border:none;border-radius:50%;
+      background:rgba(0,0,0,.6);
+      color:#fff;font-size:18px;
+      line-height:26px;
+      cursor:pointer;
+      transition:background .2s;
+    }
+    .close-btn:hover{background:rgba(0,0,0,.8)}
+  </style>
+</head>
+
+<body>
+  <header>
+    <div id="controls">
+      <input id="urlInput" type="text" placeholder="Paste YouTube URL here…" />
+      <button id="addBtn">Add Video</button>
+    </div>
+  </header>
+
+  <main id="grid"></main>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const addBtn   = document.getElementById('addBtn');
+    const grid     = document.getElementById('grid');
+
+    /* Extract the 11-character video ID from common YouTube URL patterns */
+    function extractVideoId(url){
+      url = url.trim();
+
+      // youtu.be/VIDEO_ID or youtu.be/VIDEO_ID?si=…
+      let m = url.match(/^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{11})/);
+      if(m) return m[1];
+
+      // watch?v=VIDEO_ID or …&v=VIDEO_ID
+      m = url.match(/[?&]v=([A-Za-z0-9_-]{11})(?:&|$)/);
+      if(m) return m[1];
+
+      // /embed/VIDEO_ID
+      m = url.match(/\/embed\/([A-Za-z0-9_-]{11})/);
+      if(m) return m[1];
+
+      // Short share links like https://www.youtube.com/shorts/VIDEO_ID
+      m = url.match(/\/shorts\/([A-Za-z0-9_-]{11})/);
+      if(m) return m[1];
+
+      return null;  // unsupported / invalid
+    }
+
+    function addVideo(){
+      const id = extractVideoId(urlInput.value);
+      if(!id){
+        alert('Please enter a valid YouTube URL.');
+        return;
+      }
+
+      // Wrapper
+      const wrapper = document.createElement('div');
+      wrapper.className = 'video-wrapper';
+
+      // Close button
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-btn';
+      closeBtn.textContent = '×';
+      closeBtn.onclick = () => wrapper.remove();
+
+      // iFrame
+      const iframe = document.createElement('iframe');
+      iframe.src   = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0`;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+
+      wrapper.append(closeBtn, iframe);
+      grid.appendChild(wrapper);
+
+      urlInput.value = '';
+      urlInput.focus();
+    }
+
+    // Button click
+    addBtn.addEventListener('click', addVideo);
+
+    // “Enter” key inside input
+    urlInput.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ addVideo(); }
+    });
+  </script>
+</body>
+</html>
