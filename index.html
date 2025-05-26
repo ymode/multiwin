@@ -2,143 +2,557 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>YouTube Multiscreen Player +</title>
+<title>YouTube Grid - Modern Multiscreen Player</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-/* ─────────  Base  ───────── */
-*,*::before,*::after{box-sizing:border-box}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#111}
-header{padding:2rem 1rem}
-#controls{max-width:1200px;margin:0 auto;display:flex;gap:1rem}
-input[type="text"]{
-  flex:1;padding:.8rem 1rem;font-size:1rem;border:1px solid #ccc;border-radius:6px}
-button#addBtn{
-  padding:.8rem 1.5rem;font-size:1rem;border:none;border-radius:6px;
-  background:#e62117;color:#fff;cursor:pointer;transition:.2s}
-button#addBtn:hover{background:#c51c12}
-
-/* ─────────  Video area  ───────── */
-#grid{
-  display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;
-  padding:1rem 1rem 3rem;max-width:2000px;margin:0 auto;
+/* ─────────  Variables & Reset  ───────── */
+:root {
+  --primary: #FF0000;
+  --primary-dark: #CC0000;
+  --bg-main: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #242424;
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --border-color: #333333;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --radius: 12px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.video-wrapper{
-  --w:350px;                         /* default width */
-  width:var(--w);aspect-ratio:16/9;
-  position:relative;border-radius:8px;overflow:hidden;background:#000;
-  user-select:none;                  /* nicer dragging feel */
-  cursor:grab;                       /* indicate draggable */
-}
-.video-wrapper:active{cursor:grabbing}
-.video-wrapper iframe{width:100%;height:100%;border:0}
 
-/* ─────────  Tile controls  ───────── */
-.controls{position:absolute;top:6px;right:6px;display:flex;gap:4px;z-index:2}
-.ctrl{
-  width:28px;height:28px;border:none;border-radius:50%;font-size:18px;
-  line-height:28px;text-align:center;color:#fff;background:rgba(0,0,0,.6);
-  cursor:pointer;transition:background .2s}
-.ctrl:hover{background:rgba(0,0,0,.8)}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─────────  Header  ───────── */
+header {
+  background: linear-gradient(to bottom, var(--bg-secondary), transparent);
+  padding: 2rem 1rem 3rem;
+  position: relative;
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--primary), #ff4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: glow 3s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.2); }
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+/* ─────────  Input Area  ───────── */
+.input-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  gap: 1rem;
+  position: relative;
+}
+
+.input-wrapper {
+  flex: 1;
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  transition: var(--transition);
+  overflow: hidden;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
+}
+
+.input-wrapper::before {
+  content: '🔗';
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0.5;
+}
+
+#urlInput {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  font-size: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  outline: none;
+}
+
+#urlInput::placeholder {
+  color: var(--text-secondary);
+}
+
+#addBtn {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#addBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+#addBtn:active {
+  transform: translateY(0);
+}
+
+#addBtn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+#addBtn:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* ─────────  Grid Layout  ───────── */
+#grid {
+  padding: 2rem;
+  max-width: 1800px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────  Video Cards  ───────── */
+.video-wrapper {
+  --size: 1;
+  grid-column: span var(--size);
+  aspect-ratio: 16/9;
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: var(--transition);
+  cursor: move;
+  animation: slideIn 0.4s ease-out;
+  border: 1px solid var(--border-color);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+.video-wrapper:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+.video-wrapper.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  cursor: grabbing;
+}
+
+.video-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ─────────  Video Controls  ───────── */
+.controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: linear-gradient(to bottom right, rgba(0,0,0,0.8), rgba(0,0,0,0.4));
+  border-radius: 0 var(--radius) 0 20px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: var(--transition);
+}
+
+.video-wrapper:hover .controls {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ctrl {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.ctrl:active {
+  transform: scale(0.95);
+}
+
+.ctrl.close {
+  background: rgba(255, 59, 48, 0.2);
+}
+
+.ctrl.close:hover {
+  background: rgba(255, 59, 48, 0.4);
+}
+
+/* ─────────  Empty State  ───────── */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-secondary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.empty-state h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+}
+
+/* ─────────  Responsive  ───────── */
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  .subtitle { font-size: 1rem; }
+  .input-container { flex-direction: column; }
+  #addBtn { width: 100%; }
+  #grid { 
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+}
+
+/* ─────────  Loading Animation  ───────── */
+.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  to { left: 100%; }
+}
 </style>
 </head>
 
 <body>
 <header>
-  <div id="controls">
-    <input id="urlInput" type="text" placeholder="Paste YouTube URL here…" autocomplete="off">
-    <button id="addBtn">Add Video</button>
+  <div class="header-content">
+    <h1>YouTube Grid</h1>
+    <p class="subtitle">Create your personalized multi-video viewing experience</p>
+    <div class="input-container">
+      <div class="input-wrapper">
+        <input id="urlInput" type="text" placeholder="Paste any YouTube URL here..." autocomplete="off">
+      </div>
+      <button id="addBtn">Add Video</button>
+    </div>
   </div>
 </header>
 
-<main id="grid"></main>
+<main id="grid">
+  <div class="empty-state">
+    <h2>🎬 No videos yet</h2>
+    <p>Add YouTube URLs above to start watching</p>
+  </div>
+</main>
 
 <script>
-/* ─── helpers ─── */
+/* ─── Core Elements ─── */
 const urlInput = document.getElementById('urlInput');
-const addBtn   = document.getElementById('addBtn');
-const grid     = document.getElementById('grid');
+const addBtn = document.getElementById('addBtn');
+const grid = document.getElementById('grid');
+let draggedElement = null;
 
-function extractVideoId(url){
-  url = url.trim();
-  let m;
-  if((m = url.match(/^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{11})/)))          return m[1];
-  if((m = url.match(/[?&]v=([A-Za-z0-9_-]{11})(?:&|$)/)))                   return m[1];
-  if((m = url.match(/\/embed\/([A-Za-z0-9_-]{11})/)))                       return m[1];
-  if((m = url.match(/\/shorts\/([A-Za-z0-9_-]{11})/)))                      return m[1];
+/* ─── YouTube URL Parser ─── */
+function extractVideoId(url) {
+  const patterns = [
+    /^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{11})/,
+    /[?&]v=([A-Za-z0-9_-]{11})(?:&|$)/,
+    /\/embed\/([A-Za-z0-9_-]{11})/,
+    /\/shorts\/([A-Za-z0-9_-]{11})/,
+    /^([A-Za-z0-9_-]{11})$/  // Just the ID
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.trim().match(pattern);
+    if (match) return match[1];
+  }
   return null;
 }
 
-/* ─── main action ─── */
-function addVideo(){
-  const id = extractVideoId(urlInput.value);
-  if(!id){ alert('Please enter a valid YouTube URL.'); return; }
+/* ─── Remove Empty State ─── */
+function removeEmptyState() {
+  const emptyState = grid.querySelector('.empty-state');
+  if (emptyState) {
+    emptyState.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => emptyState.remove(), 300);
+  }
+}
 
+/* ─── Video Creation ─── */
+function addVideo() {
+  const id = extractVideoId(urlInput.value);
+  if (!id) {
+    // Shake animation for invalid input
+    urlInput.parentElement.style.animation = 'shake 0.3s';
+    setTimeout(() => urlInput.parentElement.style.animation = '', 300);
+    return;
+  }
+
+  removeEmptyState();
+
+  // Create video container
   const wrap = document.createElement('div');
   wrap.className = 'video-wrapper';
   wrap.draggable = true;
 
-  /* DRAG-AND-DROP reorder */
-  wrap.addEventListener('dragstart', e=>{
-    e.dataTransfer.setData('text/plain',''); // Firefox needs something
-    wrap.classList.add('dragging');
-    dragSrc = wrap;
-  });
-  wrap.addEventListener('dragend', ()=> wrap.classList.remove('dragging'));
-  wrap.addEventListener('dragover', e=>{
-    e.preventDefault();
-    const dragging = document.querySelector('.dragging');
-    if(!dragging || dragging===wrap) return;
-    const rect = wrap.getBoundingClientRect();
-    const before = e.clientY < rect.top + rect.height/2;
-    grid.insertBefore(dragging, before ? wrap : wrap.nextSibling);
-  });
+  // Drag and drop handlers
+  wrap.addEventListener('dragstart', handleDragStart);
+  wrap.addEventListener('dragend', handleDragEnd);
+  wrap.addEventListener('dragover', handleDragOver);
+  wrap.addEventListener('drop', handleDrop);
 
-  /* controls */
+  // Control buttons
   const controls = document.createElement('div');
   controls.className = 'controls';
 
-  const btnMinus = document.createElement('button');
-  btnMinus.className = 'ctrl'; btnMinus.textContent = '−';
+  const buttons = [
+    { icon: '−', class: 'ctrl', action: () => adjustSize(wrap, -1) },
+    { icon: '+', class: 'ctrl', action: () => adjustSize(wrap, 1) },
+    { icon: '⛶', class: 'ctrl', action: () => toggleFullscreen(wrap) },
+    { icon: '✕', class: 'ctrl close', action: () => removeVideo(wrap) }
+  ];
 
-  const btnPlus  = document.createElement('button');
-  btnPlus.className = 'ctrl'; btnPlus.textContent = '+';
+  buttons.forEach(({ icon, class: className, action }) => {
+    const btn = document.createElement('button');
+    btn.className = className;
+    btn.textContent = icon;
+    btn.onclick = action;
+    controls.appendChild(btn);
+  });
 
-  const btnFS    = document.createElement('button');
-  btnFS.className = 'ctrl'; btnFS.textContent = '⛶';
-
-  const btnClose = document.createElement('button');
-  btnClose.className = 'ctrl'; btnClose.textContent = '×';
-
-  controls.append(btnMinus, btnPlus, btnFS, btnClose);
-  wrap.appendChild(controls);
-
-  /* iframe */
+  // YouTube iframe
   const iframe = document.createElement('iframe');
-  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0`;
+  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&modestbranding=1`;
   iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
   iframe.allowFullscreen = true;
+  
+  wrap.appendChild(controls);
   wrap.appendChild(iframe);
-
-  /* button logic */
-  const MIN = 200, MAX = 1400, STEP = 100;
-  function currentW(){return parseInt(wrap.style.getPropertyValue('--w') || 350);}
-  btnPlus.onclick  = ()=>{let w=currentW();if(w<MAX){w+=STEP;wrap.style.setProperty('--w',w+'px');}}
-  btnMinus.onclick = ()=>{let w=currentW();if(w>MIN){w-=STEP;wrap.style.setProperty('--w',w+'px');}}
-  btnClose.onclick = ()=> wrap.remove();
-  btnFS.onclick    = ()=> {
-      if(!document.fullscreenElement) wrap.requestFullscreen().catch(()=>{});
-      else document.exitFullscreen();
-  }
-
   grid.appendChild(wrap);
-  urlInput.value='';
+
+  // Clear input and refocus
+  urlInput.value = '';
   urlInput.focus();
+  
+  // Success feedback
+  addBtn.style.background = 'linear-gradient(135deg, #00C853, #00E676)';
+  setTimeout(() => {
+    addBtn.style.background = '';
+  }, 500);
 }
 
-addBtn.addEventListener('click', addVideo);
-urlInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addVideo(); });
+/* ─── Size Adjustment ─── */
+function adjustSize(wrap, direction) {
+  const currentSize = parseInt(wrap.style.getPropertyValue('--size') || 1);
+  const newSize = Math.max(1, Math.min(3, currentSize + direction));
+  wrap.style.setProperty('--size', newSize);
+}
 
+/* ─── Fullscreen ─── */
+function toggleFullscreen(wrap) {
+  if (!document.fullscreenElement) {
+    wrap.requestFullscreen().catch(err => console.log(err));
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+/* ─── Remove Video ─── */
+function removeVideo(wrap) {
+  wrap.style.animation = 'slideOut 0.3s ease-out';
+  setTimeout(() => {
+    wrap.remove();
+    if (grid.children.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <h2>🎬 No videos yet</h2>
+          <p>Add YouTube URLs above to start watching</p>
+        </div>
+      `;
+    }
+  }, 300);
+}
+
+/* ─── Drag and Drop ─── */
+function handleDragStart(e) {
+  draggedElement = this;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  draggedElement = null;
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  
+  const afterElement = getDragAfterElement(grid, e.clientY);
+  if (afterElement == null) {
+    grid.appendChild(draggedElement);
+  } else {
+    grid.insertBefore(draggedElement, afterElement);
+  }
+  return false;
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) e.stopPropagation();
+  return false;
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.video-wrapper:not(.dragging)')];
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+/* ─── Event Listeners ─── */
+addBtn.addEventListener('click', addVideo);
+urlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') addVideo();
+});
+
+/* ─── Shake Animation ─── */
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+  @keyframes slideOut {
+    to {
+      opacity: 0;
+      transform: scale(0.8) rotate(5deg);
+    }
+  }
+  @keyframes fadeOut {
+    to { opacity: 0; transform: translateY(-20px); }
+  }
+`;
+document.head.appendChild(style);
+
+/* ─── Focus input on load ─── */
+urlInput.focus();
 </script>
 </body>
 </html>
