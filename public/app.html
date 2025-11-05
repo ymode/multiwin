@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YouTube Grid - Modern Multiscreen Player</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+/* ─────────  Variables & Reset  ───────── */
+:root {
+  --primary: #FF0000;
+  --primary-dark: #CC0000;
+  --bg-main: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #242424;
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --border-color: #333333;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --radius: 12px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─────────  Header  ───────── */
+header {
+  background: linear-gradient(to bottom, var(--bg-secondary), transparent);
+  padding: 2rem 1rem 3rem;
+  position: relative;
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.username {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.logout-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary);
+}
+
+.title-section {
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--primary), #ff4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: glow 3s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.2); }
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+/* ─────────  Input Area  ───────── */
+.input-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  gap: 1rem;
+  position: relative;
+}
+
+.input-wrapper {
+  flex: 1;
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  transition: var(--transition);
+  overflow: hidden;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
+}
+
+.input-wrapper::before {
+  content: '🔗';
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0.5;
+}
+
+#urlInput {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  font-size: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  outline: none;
+}
+
+#urlInput::placeholder {
+  color: var(--text-secondary);
+}
+
+#addBtn {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#addBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+#addBtn:active {
+  transform: translateY(0);
+}
+
+/* ─────────  Layout Controls  ───────── */
+.layout-controls {
+  max-width: 800px;
+  margin: 1rem auto 0;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.layout-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.9rem;
+}
+
+.layout-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary);
+}
+
+/* ─────────  Grid Layout  ───────── */
+#grid {
+  padding: 2rem;
+  max-width: 1800px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────  Video Cards  ───────── */
+.video-wrapper {
+  --size: 1;
+  grid-column: span var(--size);
+  aspect-ratio: 16/9;
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: var(--transition);
+  cursor: move;
+  animation: slideIn 0.4s ease-out;
+  border: 1px solid var(--border-color);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+.video-wrapper:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+.video-wrapper.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  cursor: grabbing;
+}
+
+.video-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ─────────  Video Controls  ───────── */
+.controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: linear-gradient(to bottom right, rgba(0,0,0,0.8), rgba(0,0,0,0.4));
+  border-radius: 0 var(--radius) 0 20px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: var(--transition);
+}
+
+.video-wrapper:hover .controls {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ctrl {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.ctrl:active {
+  transform: scale(0.95);
+}
+
+.ctrl.close {
+  background: rgba(255, 59, 48, 0.2);
+}
+
+.ctrl.close:hover {
+  background: rgba(255, 59, 48, 0.4);
+}
+
+/* ─────────  Empty State  ───────── */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-secondary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.empty-state h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+}
+
+/* ─────────  Modal  ───────── */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+}
+
+.close-modal {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.close-modal:hover {
+  background: var(--bg-secondary);
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.modal-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.modal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.layout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.layout-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: var(--transition);
+}
+
+.layout-item:hover {
+  border-color: var(--primary);
+}
+
+.layout-info {
+  flex: 1;
+}
+
+.layout-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.layout-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.layout-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.layout-action-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.85rem;
+}
+
+.layout-action-btn:hover {
+  background: var(--bg-main);
+}
+
+.layout-action-btn.delete {
+  color: #ff4444;
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.layout-action-btn.delete:hover {
+  background: rgba(255, 68, 68, 0.1);
+}
+
+/* ─────────  Responsive  ───────── */
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  .subtitle { font-size: 1rem; }
+  .input-container { flex-direction: column; }
+  #addBtn { width: 100%; }
+  #grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  .top-bar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="header-content">
+    <div class="top-bar">
+      <div class="user-info">
+        <span class="username">Welcome, <span id="currentUser"></span></span>
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+    <div class="title-section">
+      <h1>YouTube Grid</h1>
+      <p class="subtitle">Create your personalized multi-video viewing experience</p>
+      <div class="input-container">
+        <div class="input-wrapper">
+          <input id="urlInput" type="text" placeholder="Paste any YouTube URL here..." autocomplete="off">
+        </div>
+        <button id="addBtn">Add Video</button>
+      </div>
+      <div class="layout-controls">
+        <button class="layout-btn" onclick="saveLayout()">💾 Save Layout</button>
+        <button class="layout-btn" onclick="loadLayout()">📂 Load Layout</button>
+        <button class="layout-btn" onclick="clearAll()">🗑️ Clear All</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="grid">
+  <div class="empty-state">
+    <h2>🎬 No videos yet</h2>
+    <p>Add YouTube URLs above to start watching</p>
+  </div>
+</main>
+
+<!-- Save Layout Modal -->
+<div id="saveModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Save Layout</h2>
+      <button class="close-modal" onclick="closeSaveModal()">✕</button>
+    </div>
+    <input type="text" id="layoutName" class="modal-input" placeholder="Enter layout name...">
+    <button class="modal-btn" onclick="confirmSave()">Save</button>
+  </div>
+</div>
+
+<!-- Load Layout Modal -->
+<div id="loadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Your Saved Layouts</h2>
+      <button class="close-modal" onclick="closeLoadModal()">✕</button>
+    </div>
+    <div id="layoutList" class="layout-list"></div>
+  </div>
+</div>
+
+<script>
+/* ─── Core Elements ─── */
+const urlInput = document.getElementById('urlInput');
+const addBtn = document.getElementById('addBtn');
+const grid = document.getElementById('grid');
+let draggedElement = null;
+let currentUser = null;
+
+/* ─── Initialize ─── */
+async function init() {
+  try {
+    const response = await fetch('/api/user');
+    if (response.ok) {
+      currentUser = await response.json();
+      document.getElementById('currentUser').textContent = currentUser.username;
+    } else {
+      window.location.href = '/';
+    }
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    window.location.href = '/';
+  }
+}
+
+init();
+
+/* ─── YouTube URL Parser ─── */
+function extractVideoId(url) {
+  const patterns = [
+    /^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{11})/,
+    /[?&]v=([A-Za-z0-9_-]{11})(?:&|$)/,
+    /\/embed\/([A-Za-z0-9_-]{11})/,
+    /\/shorts\/([A-Za-z0-9_-]{11})/,
+    /^([A-Za-z0-9_-]{11})$/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.trim().match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+/* ─── Remove Empty State ─── */
+function removeEmptyState() {
+  const emptyState = grid.querySelector('.empty-state');
+  if (emptyState) {
+    emptyState.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => emptyState.remove(), 300);
+  }
+}
+
+/* ─── Video Creation ─── */
+function addVideo() {
+  const id = extractVideoId(urlInput.value);
+  if (!id) {
+    urlInput.parentElement.style.animation = 'shake 0.3s';
+    setTimeout(() => urlInput.parentElement.style.animation = '', 300);
+    return;
+  }
+
+  removeEmptyState();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'video-wrapper';
+  wrap.draggable = true;
+  wrap.dataset.videoId = id;
+
+  wrap.addEventListener('dragstart', handleDragStart);
+  wrap.addEventListener('dragend', handleDragEnd);
+  wrap.addEventListener('dragover', handleDragOver);
+  wrap.addEventListener('drop', handleDrop);
+
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+
+  const buttons = [
+    { icon: '−', class: 'ctrl', action: () => adjustSize(wrap, -1) },
+    { icon: '+', class: 'ctrl', action: () => adjustSize(wrap, 1) },
+    { icon: '⛶', class: 'ctrl', action: () => toggleFullscreen(wrap) },
+    { icon: '✕', class: 'ctrl close', action: () => removeVideo(wrap) }
+  ];
+
+  buttons.forEach(({ icon, class: className, action }) => {
+    const btn = document.createElement('button');
+    btn.className = className;
+    btn.textContent = icon;
+    btn.onclick = action;
+    controls.appendChild(btn);
+  });
+
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&modestbranding=1`;
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  iframe.allowFullscreen = true;
+
+  wrap.appendChild(controls);
+  wrap.appendChild(iframe);
+  grid.appendChild(wrap);
+
+  urlInput.value = '';
+  urlInput.focus();
+
+  addBtn.style.background = 'linear-gradient(135deg, #00C853, #00E676)';
+  setTimeout(() => {
+    addBtn.style.background = '';
+  }, 500);
+}
+
+/* ─── Size Adjustment ─── */
+function adjustSize(wrap, direction) {
+  const currentSize = parseInt(wrap.style.getPropertyValue('--size') || 1);
+  const newSize = Math.max(1, Math.min(3, currentSize + direction));
+  wrap.style.setProperty('--size', newSize);
+}
+
+/* ─── Fullscreen ─── */
+function toggleFullscreen(wrap) {
+  if (!document.fullscreenElement) {
+    wrap.requestFullscreen().catch(err => console.log(err));
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+/* ─── Remove Video ─── */
+function removeVideo(wrap) {
+  wrap.style.animation = 'slideOut 0.3s ease-out';
+  setTimeout(() => {
+    wrap.remove();
+    if (grid.children.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <h2>🎬 No videos yet</h2>
+          <p>Add YouTube URLs above to start watching</p>
+        </div>
+      `;
+    }
+  }, 300);
+}
+
+/* ─── Drag and Drop ─── */
+function handleDragStart(e) {
+  draggedElement = this;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  draggedElement = null;
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+
+  const afterElement = getDragAfterElement(grid, e.clientY);
+  if (afterElement == null) {
+    grid.appendChild(draggedElement);
+  } else {
+    grid.insertBefore(draggedElement, afterElement);
+  }
+  return false;
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) e.stopPropagation();
+  return false;
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.video-wrapper:not(.dragging)')];
+
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+/* ─── Layout Management ─── */
+function getCurrentLayout() {
+  const videos = [];
+  document.querySelectorAll('.video-wrapper').forEach(wrap => {
+    videos.push({
+      id: wrap.dataset.videoId,
+      size: wrap.style.getPropertyValue('--size') || '1'
+    });
+  });
+  return videos;
+}
+
+function saveLayout() {
+  const videos = getCurrentLayout();
+  if (videos.length === 0) {
+    alert('Add some videos first!');
+    return;
+  }
+  document.getElementById('saveModal').classList.add('show');
+}
+
+function closeSaveModal() {
+  document.getElementById('saveModal').classList.remove('show');
+  document.getElementById('layoutName').value = '';
+}
+
+async function confirmSave() {
+  const name = document.getElementById('layoutName').value.trim();
+  if (!name) {
+    alert('Please enter a layout name');
+    return;
+  }
+
+  const videos = getCurrentLayout();
+
+  try {
+    const response = await fetch('/api/layouts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, videos })
+    });
+
+    if (response.ok) {
+      closeSaveModal();
+      alert('Layout saved successfully!');
+    } else {
+      const data = await response.json();
+      alert(data.error || 'Failed to save layout');
+    }
+  } catch (error) {
+    alert('Network error. Please try again.');
+  }
+}
+
+async function loadLayout() {
+  try {
+    const response = await fetch('/api/layouts');
+    if (!response.ok) {
+      alert('Failed to load layouts');
+      return;
+    }
+
+    const layouts = await response.json();
+    const listContainer = document.getElementById('layoutList');
+
+    if (layouts.length === 0) {
+      listContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No saved layouts yet</p>';
+    } else {
+      listContainer.innerHTML = layouts.map(layout => `
+        <div class="layout-item">
+          <div class="layout-info">
+            <div class="layout-name">${layout.name}</div>
+            <div class="layout-meta">${layout.videos.length} videos</div>
+          </div>
+          <div class="layout-actions">
+            <button class="layout-action-btn" onclick="applyLayout(${layout.id})">Load</button>
+            <button class="layout-action-btn delete" onclick="deleteLayout(${layout.id})">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('loadModal').classList.add('show');
+  } catch (error) {
+    alert('Network error. Please try again.');
+  }
+}
+
+function closeLoadModal() {
+  document.getElementById('loadModal').classList.remove('show');
+}
+
+async function applyLayout(layoutId) {
+  try {
+    const response = await fetch('/api/layouts');
+    if (!response.ok) return;
+
+    const layouts = await response.json();
+    const layout = layouts.find(l => l.id === layoutId);
+
+    if (!layout) return;
+
+    // Clear current grid
+    grid.innerHTML = '';
+
+    // Add videos from layout
+    layout.videos.forEach(video => {
+      const wrap = document.createElement('div');
+      wrap.className = 'video-wrapper';
+      wrap.draggable = true;
+      wrap.dataset.videoId = video.id;
+      wrap.style.setProperty('--size', video.size);
+
+      wrap.addEventListener('dragstart', handleDragStart);
+      wrap.addEventListener('dragend', handleDragEnd);
+      wrap.addEventListener('dragover', handleDragOver);
+      wrap.addEventListener('drop', handleDrop);
+
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      const buttons = [
+        { icon: '−', class: 'ctrl', action: () => adjustSize(wrap, -1) },
+        { icon: '+', class: 'ctrl', action: () => adjustSize(wrap, 1) },
+        { icon: '⛶', class: 'ctrl', action: () => toggleFullscreen(wrap) },
+        { icon: '✕', class: 'ctrl close', action: () => removeVideo(wrap) }
+      ];
+
+      buttons.forEach(({ icon, class: className, action }) => {
+        const btn = document.createElement('button');
+        btn.className = className;
+        btn.textContent = icon;
+        btn.onclick = action;
+        controls.appendChild(btn);
+      });
+
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${video.id}?autoplay=0&mute=1&rel=0&modestbranding=1`;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+
+      wrap.appendChild(controls);
+      wrap.appendChild(iframe);
+      grid.appendChild(wrap);
+    });
+
+    closeLoadModal();
+  } catch (error) {
+    alert('Failed to load layout');
+  }
+}
+
+async function deleteLayout(layoutId) {
+  if (!confirm('Are you sure you want to delete this layout?')) return;
+
+  try {
+    const response = await fetch(`/api/layouts/${layoutId}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      loadLayout(); // Refresh the list
+    } else {
+      alert('Failed to delete layout');
+    }
+  } catch (error) {
+    alert('Network error. Please try again.');
+  }
+}
+
+function clearAll() {
+  if (!confirm('Clear all videos?')) return;
+
+  grid.innerHTML = `
+    <div class="empty-state">
+      <h2>🎬 No videos yet</h2>
+      <p>Add YouTube URLs above to start watching</p>
+    </div>
+  `;
+}
+
+async function logout() {
+  try {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/';
+  } catch (error) {
+    console.error('Logout error:', error);
+    window.location.href = '/';
+  }
+}
+
+/* ─── Event Listeners ─── */
+addBtn.addEventListener('click', addVideo);
+urlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') addVideo();
+});
+
+// Close modals on background click
+document.getElementById('saveModal').addEventListener('click', (e) => {
+  if (e.target.id === 'saveModal') closeSaveModal();
+});
+document.getElementById('loadModal').addEventListener('click', (e) => {
+  if (e.target.id === 'loadModal') closeLoadModal();
+});
+
+/* ─── Animations ─── */
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+  @keyframes slideOut {
+    to {
+      opacity: 0;
+      transform: scale(0.8) rotate(5deg);
+    }
+  }
+  @keyframes fadeOut {
+    to { opacity: 0; transform: translateY(-20px); }
+  }
+`;
+document.head.appendChild(style);
+
+urlInput.focus();
+</script>
+</body>
+</html>
