@@ -21,8 +21,8 @@ YouTube link, and start watching. No download or installation required.
 ## Usage
 
 1. Launch the application using the [installation instructions](#installation) below
-2. Paste a YouTube URL into the input field
-3. Click "Add Video" or press Enter to add the video to the grid
+2. Paste one or more YouTube URLs into the input field (separate them with spaces or new lines)
+3. Click "Add videos" or press Enter to add them to the grid; Shift+Enter inserts a new line
 4. Repeat to add more videos
 5. Click the '×' button on any video to remove it from the grid
 
@@ -74,10 +74,22 @@ shown when needed.
 
 ## Supported URL Formats
 
-The player supports various YouTube URL formats, including:
-- Standard watch URLs (https://www.youtube.com/watch?v=VIDEO_ID)
-- Short URLs (https://youtu.be/VIDEO_ID)
-- Embed URLs (https://www.youtube.com/embed/VIDEO_ID)
+The player accepts video IDs and these URL formats (including mobile YouTube links):
+
+- Watch: `https://www.youtube.com/watch?v=VIDEO_ID`
+- Short: `https://youtu.be/VIDEO_ID`
+- Embed: `https://www.youtube.com/embed/VIDEO_ID`
+- Live: `https://www.youtube.com/live/VIDEO_ID`
+- Shorts: `https://www.youtube.com/shorts/VIDEO_ID`
+
+Start times such as `?t=90`, `&t=1m30s`, `?start=90` and `#t=90` are preserved
+when adding, restoring and sharing videos. Supported start offsets are zero to
+seven days. Only recognized YouTube hosts and exact 11-character IDs are accepted.
+Playlist-only links need to be replaced with individual video links.
+
+For a mixed batch, valid links are added while rejected links stay in the input
+with an explanation. You can correct and resubmit them without adding the valid
+ones again. Repeated video links are allowed for comparing different moments.
 
 ## Technical Details
 

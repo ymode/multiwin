@@ -390,3 +390,42 @@ test('layout and focus restore; mobile sizing stays inside the viewport; whole g
     await page.evaluate(() => document.exitFullscreen());
   } finally { await page.close(); }
 });
+
+test('YouTube parsing accepts supported formats, preserves timestamps and rejects lookalike hosts', async () => {
+  const page = await openApp();
+  try {
+    const cases = [
+      ['https://www.youtube.com/live/M7lc1UVf-VE?t=1h2m3s', { id: 'M7lc1UVf-VE', start: 3723 }],
+      ['https://youtu.be/M7lc1UVf-VE?t=90', { id: 'M7lc1UVf-VE', start: 90 }],
+      ['https://m.youtube.com/watch?v=M7lc1UVf-VE#t=90', { id: 'M7lc1UVf-VE', start: 90 }],
+      ['https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?start=40', { id: 'M7lc1UVf-VE', start: 40 }],
+      ['youtube.com/shorts/M7lc1UVf-VE', { id: 'M7lc1UVf-VE', start: 0 }]
+    ];
+    for (const [input, expected] of cases) assert.deepEqual(await page.evaluate(input => parseYouTubeLink(input), input), expected);
+    for (const input of [
+      'https://example.com/?v=M7lc1UVf-VE', 'https://youtube.com.evil.test/watch?v=M7lc1UVf-VE',
+      'https://youtu.be/M7lc1UVf-VEextra', 'https://www.youtube.com/playlist?list=PL123',
+      'javascript:alert(1)', 'https://youtube.com/watch?v=M7lc1UVf-VE&t=oops'
+    ]) assert.ok((await page.evaluate(input => parseYouTubeLink(input), input)).error, input);
+  } finally { await page.close(); }
+});
+
+test('mixed batches preserve rejected input and timestamps survive refresh', async () => {
+  const page = await openApp();
+  try {
+    await page.locator('#urlInput').fill('https://youtube.com/live/M7lc1UVf-VE?t=1m30s\nbad-link\nhttps://youtu.be/y0sF5xhGreA?start=42');
+    await page.locator('#urlInput').press('Enter');
+    assert.equal(await page.locator('.video-wrapper').count(), 2);
+    assert.equal(await page.locator('#urlInput').inputValue(), 'bad-link');
+    assert.equal(await page.locator('#urlInput').getAttribute('aria-invalid'), 'true');
+    assert.match(await page.locator('#inputFeedback').innerText(), /1 link/);
+    assert.equal(new URL(await page.locator('iframe').first().getAttribute('src')).searchParams.get('start'), '90');
+    await page.reload();
+    assert.deepEqual(await page.evaluate(() => getSetup().videos.map(v => v.start)), [90, 42]);
+    await page.locator('#urlInput').fill('dQw4w9WgXcQ');
+    await page.locator('#urlInput').press('Shift+Enter');
+    assert.equal(await page.locator('.video-wrapper').count(), 2);
+    await page.locator('#urlInput').press('Enter');
+    assert.equal(await page.locator('.video-wrapper').count(), 3);
+  } finally { await page.close(); }
+});

@@ -124,6 +124,10 @@ h1 {
 }
 
 #urlInput {
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  display: block;
   width: 100%;
   padding: 1rem 1rem 1rem 3rem;
   font-size: 1rem;
@@ -366,6 +370,11 @@ h1 {
 #viewer:fullscreen { background: var(--bg-main); overflow-y: auto; }
 .video-wrapper:fullscreen { display: flex; flex-direction: column; background: black; }
 .video-wrapper:fullscreen .player-frame { flex: 1; min-height: 0; aspect-ratio: auto; }
+#inputHint, #inputFeedback { max-width: 800px; margin: .5rem auto; font-size: .875rem; line-height: 1.5; }
+#inputHint { color: var(--text-secondary); }
+#inputFeedback:empty { display: none; }
+#inputFeedback { color: #ffb4ab; }
+#urlInput[aria-invalid="true"] { box-shadow: inset 0 0 0 2px #ffb4ab; }
 /* ───────── Saved setups ───────── */
 .setup-toolbar {
   max-width: 1000px;
@@ -408,10 +417,12 @@ h1 {
     </div>
     <div class="input-container">
       <div class="input-wrapper">
-        <input id="urlInput" type="text" placeholder="Paste any YouTube URL here..." autocomplete="off">
+        <textarea id="urlInput" rows="2" maxlength="32768" placeholder="Paste YouTube links or video IDs, one per line…" autocomplete="off" spellcheck="false" aria-label="YouTube links" aria-describedby="inputHint inputFeedback"></textarea>
       </div>
-      <button id="addBtn">Add Video</button>
+      <button id="addBtn">Add videos</button>
     </div>
+    <p id="inputHint">Enter to add · Shift+Enter for a new line · Watch, live, Shorts and timestamped links supported</p>
+    <p id="inputFeedback" role="status" aria-live="polite"></p>
     <details id="savedSetups">
       <summary>Saved setups &amp; sharing</summary>
     <div class="setup-toolbar" role="group" aria-label="Saved setups">
@@ -480,21 +491,49 @@ if (!hasWebContext) {
   addBtn.disabled = true;
 }
 
-/* ─── YouTube URL Parser ─── */
-function extractVideoId(url) {
-  const patterns = [
-    /^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{11})/,
-    /[?&]v=([A-Za-z0-9_-]{11})(?:&|$)/,
-    /\/embed\/([A-Za-z0-9_-]{11})/,
-    /\/shorts\/([A-Za-z0-9_-]{11})/,
-    /^([A-Za-z0-9_-]{11})$/  // Just the ID
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.trim().match(pattern);
-    if (match) return match[1];
+/* ─── YouTube URL and timestamp parsing ─── */
+function parseStartTime(value) {
+  if (!value) return 0;
+  if (/^\d+$/.test(value)) return Number(value);
+  const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
+  return match && match[0] ? Number(match[1] || 0) * 3600 + Number(match[2] || 0) * 60 + Number(match[3] || 0) : NaN;
+}
+
+function parseYouTubeLink(input) {
+  const value = input.trim();
+  const validId = /^[A-Za-z0-9_-]{11}$/;
+  if (validId.test(value)) return { id: value, start: 0 };
+  let url;
+  try {
+    const withScheme = /^(?:(?:www|m|music)\.)?youtube\.com\/|^(?:www\.)?youtu\.be\//i.test(value)
+      ? 'https://' + value : value;
+    url = new URL(withScheme);
+  } catch { return { error: 'Paste a YouTube video link or an 11-character video ID.' }; }
+  const hosts = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com',
+    'youtu.be', 'www.youtu.be', 'youtube-nocookie.com', 'www.youtube-nocookie.com']);
+  if (!['https:', 'http:'].includes(url.protocol) || !hosts.has(url.hostname) || url.username || url.password || url.port) {
+    return { error: 'Use a link from youtube.com or youtu.be.' };
   }
-  return null;
+  const parts = url.pathname.split('/').filter(Boolean);
+  let id;
+  if (url.hostname === 'youtu.be' || url.hostname === 'www.youtu.be') {
+    if (parts.length === 1) id = parts[0];
+  } else if (parts.length === 1 && parts[0] === 'watch') {
+    id = url.searchParams.get('v');
+  } else if (parts.length === 2 && ['embed', 'shorts', 'live', 'v'].includes(parts[0])) {
+    id = parts[1];
+  }
+  if (!id || !validId.test(id)) {
+    return { error: url.searchParams.has('list') ? 'Paste individual video links instead of a playlist link.' : 'This link needs a valid YouTube video ID.' };
+  }
+  const hash = new URLSearchParams(url.hash.slice(1));
+  const time = url.searchParams.get('t') ?? url.searchParams.get('start') ?? hash.get('t') ??
+    (/^#\d/.test(url.hash) ? url.hash.slice(1) : '');
+  const start = parseStartTime(time);
+  if (!Number.isInteger(start) || start < 0 || start > 604800) {
+    return { error: 'Use a start time in seconds or h/m/s, up to seven days (for example, t=1m30s).' };
+  }
+  return { id, start };
 }
 
 /* ─── Remove Empty State ─── */
@@ -509,22 +548,37 @@ function removeEmptyState() {
 /* ─── Video Creation ─── */
 function addVideo() {
   if (!hasWebContext) return;
-
-  const id = extractVideoId(urlInput.value);
-  if (!id) {
-    // Shake animation for invalid input
-    urlInput.parentElement.style.animation = 'shake 0.3s';
-    setTimeout(() => urlInput.parentElement.style.animation = '', 300);
+  const inputs = urlInput.value.trim().split(/\s+/).filter(Boolean);
+  const feedback = document.getElementById('inputFeedback');
+  if (!inputs.length) {
+    feedback.textContent = 'Paste at least one YouTube link or video ID.';
+    urlInput.setAttribute('aria-invalid', 'true');
+    urlInput.focus();
     return;
   }
-
-  if (grid.querySelectorAll('.video-wrapper').length >= 100) {
-    setSetupStatus('This setup is full (100 videos). Remove a video before adding another.');
-    return;
+  const rejected = [];
+  const errors = [];
+  let added = 0;
+  let count = grid.querySelectorAll('.video-wrapper').length;
+  for (const input of inputs) {
+    const parsed = parseYouTubeLink(input);
+    const error = parsed.error || (count >= 100 ? 'This setup is full (100 videos). Remove a video to add more.' : null);
+    if (error) {
+      rejected.push(input);
+      if (!errors.includes(error)) errors.push(error);
+      continue;
+    }
+    createVideo({ ...parsed, key: makeVideoKey(), size: 1 });
+    count++;
+    added++;
   }
-  createVideo({ id, key: makeVideoKey(), size: 1, start: 0 });
-  saveSession();
-  urlInput.value = '';
+  if (added) {
+    setSetupStatus('Added ' + added + (added === 1 ? ' video.' : ' videos.'));
+    saveSession();
+  }
+  urlInput.value = rejected.join('\n');
+  urlInput.setAttribute('aria-invalid', String(rejected.length > 0));
+  feedback.textContent = rejected.length ? rejected.length + ' link(s) need attention. ' + errors.join(' ') : '';
   urlInput.focus();
 }
 
@@ -723,17 +777,17 @@ function handleDrop(e) {
 /* ─── Event Listeners ─── */
 addBtn.addEventListener('click', addVideo);
 urlInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') addVideo();
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addVideo(); }
 });
 
-/* ─── Shake Animation ─── */
+urlInput.addEventListener('input', () => {
+  urlInput.removeAttribute('aria-invalid');
+  document.getElementById('inputFeedback').textContent = '';
+});
+
+/* ─── Removal animations ─── */
 const style = document.createElement('style');
 style.textContent = `
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-  }
   @keyframes slideOut {
     to {
       opacity: 0;
