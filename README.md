@@ -26,6 +26,24 @@ YouTube link, and start watching. No download or installation required.
 4. Repeat to add more videos
 5. Click the '×' button on any video to remove it from the grid
 
+## Saved setups and sharing
+
+The grid is saved automatically in this browser, including video order and sizes.
+Refreshing restores it. Use **Save preset** to keep a named setup, then select it
+and choose **Load** to replace the current grid. Saving an existing name updates
+that preset; **Delete preset** removes the saved copy without changing the grid.
+Up to 100 videos per setup and 50 named presets are supported.
+
+**Copy setup link** shares the video list, order, sizes and start offsets in the
+URL fragment. No account or Multiwin backend is involved. Anyone with the link
+can read and open that setup. Opening a shared link replaces the current grid;
+later edits are saved locally and do not change the shared snapshot. A local
+`127.0.0.1` link works only on a computer running its own copy; use the hosted app
+for links you send to other people. Presets and sessions belong to the current
+browser and site address. Clearing browser data removes them. If storage or
+clipboard access is blocked, watching still works and a selectable share link is
+shown when needed.
+
 ## Supported URL Formats
 
 The player supports various YouTube URL formats, including:

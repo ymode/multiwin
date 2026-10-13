@@ -162,3 +162,78 @@ for (const videoId of ['y0sF5xhGreA', 'M7lc1UVf-VE']) {
     } finally { await page.close(); }
   });
 }
+
+async function openApp(options = {}) {
+  const page = await browser.newPage(options);
+  await page.route('https://www.youtube.com/**', route => route.fulfill({
+    contentType: 'text/html', body: '<p>Test player</p>'
+  }));
+  await page.goto(localURL);
+  return page;
+}
+
+async function addId(page, id) {
+  await page.locator('#urlInput').fill(id);
+  await page.locator('#addBtn').click();
+}
+
+test('refresh restores order and size; named presets load and delete', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 } });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await addId(page, 'y0sF5xhGreA');
+    await page.evaluate(() => {
+      const first = grid.querySelector('.video-wrapper');
+      adjustSize(first, 1);
+      grid.appendChild(first);
+      saveSession();
+    });
+    const before = await page.evaluate(() => getSetup());
+    await page.reload();
+    assert.deepEqual(await page.evaluate(() => getSetup()), before);
+    await page.locator('#presetName').fill('Race weekend');
+    await page.locator('#savePreset').click();
+    await addId(page, 'dQw4w9WgXcQ');
+    await page.locator('#loadPreset').click();
+    assert.deepEqual(await page.evaluate(() => getSetup()), before);
+    await page.locator('#deletePreset').click();
+    assert.equal(await page.locator('#presetSelect option').count(), 1);
+    assert.equal(await page.locator('.video-wrapper').count(), 2);
+  } finally { await page.close(); }
+});
+
+test('share link opens the same setup; clipboard denial offers a selectable link', async () => {
+  const page = await openApp();
+  const other = await openApp();
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('Denied')) }
+    }));
+    await page.locator('#shareSetup').click();
+    assert.equal(await page.locator('#shareFallback').isVisible(), true);
+    const link = await page.locator('#shareURL').inputValue();
+    await other.goto(link);
+    await other.waitForFunction(() => document.querySelectorAll('.video-wrapper').length === 1);
+    assert.deepEqual(await other.evaluate(() => getSetup()), await page.evaluate(() => getSetup()));
+    assert.equal(new URL(other.url()).hash, '');
+    await other.reload();
+    assert.equal(await other.locator('.video-wrapper').count(), 1);
+  } finally { await page.close(); await other.close(); }
+});
+
+test('corrupt data, malformed sharing and unavailable storage do not break adding', async () => {
+  const page = await openApp();
+  try {
+    await page.evaluate(() => localStorage.setItem('multiwin.session.v1', '{bad'));
+    await page.goto(localURL + '#setup=%invalid');
+    await page.reload();
+    assert.match(await page.locator('#setupStatus').innerText(), /invalid/);
+    await page.evaluate(() => Object.defineProperty(window, 'localStorage', {
+      get() { throw new Error('Storage blocked'); }
+    }));
+    await addId(page, 'M7lc1UVf-VE');
+    assert.equal(await page.locator('.video-wrapper').count(), 1);
+    assert.match(await page.locator('#setupStatus').innerText(), /storage is unavailable/);
+  } finally { await page.close(); }
+});
