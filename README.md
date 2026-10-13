@@ -26,6 +26,19 @@ YouTube link, and start watching. No download or installation required.
 4. Repeat to add more videos
 5. Click the '×' button on any video to remove it from the grid
 
+## Playback controls
+
+Use **Listen to this** beneath a video to hear it while muting the others. The
+selected card is highlighted; click **Listening · mute** or **Mute all** to
+silence it. **Pause all** and **Play all** control the whole grid. New players
+respect Pause all even if they finish loading later.
+
+Audio selection is remembered with a setup, but restored and shared grids start
+muted. Choose **Resume audio** to enable sound. YouTube or the browser can block
+autoplay; use the individual player's Play button when prompted. Unavailable,
+private and non-embeddable videos show a recovery message with a YouTube link.
+If the shared control API cannot load, the native embedded controls remain usable.
+
 ## Saved setups and sharing
 
 The grid is saved automatically in this browser, including video order and sizes.

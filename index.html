@@ -199,7 +199,6 @@ h1 {
 .video-wrapper {
   --size: 1;
   grid-column: span var(--size);
-  aspect-ratio: 16/9;
   position: relative;
   background: var(--bg-card);
   border-radius: var(--radius);
@@ -346,6 +345,14 @@ h1 {
 @keyframes shimmer {
   to { left: 100%; }
 }
+.player-frame { aspect-ratio: 16/9; }
+.player-status { padding: .65rem; font-size: .9rem; line-height: 1.5; }
+.player-status:empty { display: none; }
+.player-status a { color: var(--text-primary); margin-left: .5rem; }
+.video-wrapper.audio-selected { border-color: #56d992; }
+.audio-btn { margin: .5rem; }
+.audio-btn[aria-pressed="true"] { color: #56d992; border-color: #56d992; }
+.playback-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin: 1rem auto; }
 /* ───────── Saved setups ───────── */
 .setup-toolbar {
   max-width: 1000px;
@@ -392,6 +399,11 @@ h1 {
       </div>
       <button id="addBtn">Add Video</button>
     </div>
+    <div class="playback-toolbar" role="group" aria-label="Playback">
+      <button id="playAll" class="tool-btn">Play all</button>
+      <button id="pauseAll" class="tool-btn">Pause all</button>
+      <button id="muteAll" class="tool-btn">Mute all</button>
+    </div>
     <div class="setup-toolbar" role="group" aria-label="Saved setups">
       <label for="presetName">Preset name</label>
       <input id="presetName" maxlength="60" placeholder="e.g. Race weekend">
@@ -423,6 +435,11 @@ const urlInput = document.getElementById('urlInput');
 const addBtn = document.getElementById('addBtn');
 const grid = document.getElementById('grid');
 let draggedElement = null;
+const players = new Map();
+let audioKey = null;
+let audioActive = false;
+let allPaused = false;
+let apiPromise;
 
 // Local files have no HTTP origin for the browser to identify to YouTube.
 const hasWebContext = ['http:', 'https:'].includes(window.location.protocol);
@@ -523,15 +540,29 @@ function createVideo({ id, key, size = 1, start = 0 }) {
   // YouTube iframe
   const iframe = document.createElement('iframe');
   // Send the real hosting origin, without exposing the page path or query string.
+  iframe.id = key;
+  iframe.title = "YouTube video " + id;
   iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&start=${start}`;
+  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=${allPaused ? 0 : 1}&mute=1&rel=0&start=${start}&enablejsapi=1&playsinline=1&origin=${encodeURIComponent(location.origin)}`;
   iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
   iframe.allowFullscreen = true;
   
-  wrap.appendChild(controls);
-  wrap.appendChild(iframe);
+  const frame = document.createElement('div');
+  frame.className = 'player-frame';
+  frame.appendChild(iframe);
+  const listen = document.createElement('button');
+  listen.className = 'tool-btn audio-btn';
+  listen.textContent = 'Listen to this';
+  listen.disabled = true;
+  listen.setAttribute('aria-pressed', 'false');
+  listen.addEventListener('click', () => selectAudio(key));
+  const status = document.createElement('p');
+  status.className = 'player-status';
+  status.setAttribute('role', 'status');
+  status.textContent = 'Loading player controls…';
+  wrap.append(controls, frame, listen, status);
   grid.appendChild(wrap);
-
+  connectPlayer(wrap, iframe);
   return wrap;
 }
 
@@ -556,6 +587,9 @@ function toggleFullscreen(wrap) {
 function removeVideo(wrap) {
   wrap.style.animation = 'slideOut 0.3s ease-out';
   setTimeout(() => {
+    if (!wrap.isConnected) return;
+    destroyPlayer(wrap.dataset.key);
+    if (audioKey === wrap.dataset.key) { audioKey = null; audioActive = false; }
     wrap.remove();
     saveSession();
     if (grid.children.length === 0) {
@@ -641,6 +675,134 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+/* ─── YouTube player controls ─── */
+function loadPlayerAPI() {
+  if (window.YT?.Player) return Promise.resolve();
+  if (apiPromise) return apiPromise;
+  apiPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const timer = setTimeout(() => reject(new Error('Player controls timed out')), 10000);
+    window.onYouTubeIframeAPIReady = () => { clearTimeout(timer); resolve(); };
+    script.onerror = () => { clearTimeout(timer); reject(new Error('Player controls unavailable')); };
+    script.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(script);
+  });
+  return apiPromise;
+}
+
+function playerMessage(wrap, message, recovery = false) {
+  const status = wrap.querySelector('.player-status');
+  status.textContent = message;
+  if (recovery) {
+    const link = document.createElement('a');
+    link.href = 'https://www.youtube.com/watch?v=' + wrap.dataset.videoId + '&t=' + wrap.dataset.start;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Watch on YouTube';
+    status.appendChild(link);
+  }
+}
+
+function updateAudioButtons() {
+  for (const [key, record] of players) {
+    const selected = key === audioKey;
+    record.wrap.classList.toggle('audio-selected', selected);
+    const button = record.wrap.querySelector('.audio-btn');
+    button.setAttribute('aria-pressed', String(selected && audioActive));
+    button.textContent = selected ? (audioActive ? 'Listening · mute' : 'Resume audio') : 'Listen to this';
+  }
+}
+
+function selectAudio(key) {
+  const record = players.get(key);
+  if (!record?.ready) return;
+  if (audioKey === key && audioActive) { muteAll(); return; }
+  audioKey = key;
+  audioActive = true;
+  for (const [otherKey, other] of players) {
+    if (!other.ready) continue;
+    if (otherKey === key) { other.player.unMute(); other.player.playVideo(); }
+    else other.player.mute();
+  }
+  updateAudioButtons();
+  saveSession();
+}
+
+function muteAll() {
+  audioKey = null;
+  audioActive = false;
+  for (const record of players.values()) if (record.ready) record.player.mute();
+  updateAudioButtons();
+  saveSession();
+}
+
+function connectPlayer(wrap, iframe) {
+  const key = wrap.dataset.key;
+  const record = { wrap, player: null, ready: false, timer: null };
+  players.set(key, record);
+  updateAudioButtons();
+  loadPlayerAPI().then(() => {
+    if (players.get(key) !== record) return;
+    record.timer = setTimeout(() => {
+      if (!record.ready) playerMessage(wrap, 'Player controls did not respond. Try the video’s Play button or reload the page.', true);
+    }, 10000);
+    record.player = new YT.Player(iframe, { events: {
+      onReady(event) {
+        if (players.get(key) !== record) return;
+        clearTimeout(record.timer);
+        record.player = event.target;
+        record.ready = true;
+        event.target.mute();
+        if (allPaused) event.target.pauseVideo();
+        wrap.querySelector('.audio-btn').disabled = false;
+        playerMessage(wrap, '');
+        updateAudioButtons();
+      },
+      onStateChange(event) {
+        if (event.data === 1 && players.get(key) === record) playerMessage(wrap, '');
+      },
+      onAutoplayBlocked() {
+        if (players.get(key) === record) playerMessage(wrap, 'Click the video’s Play button to start playback.');
+      },
+      onError(event) {
+        if (players.get(key) !== record) return;
+        clearTimeout(record.timer);
+        const messages = {
+          2: 'This video link is invalid.',
+          5: 'This browser could not play the video.',
+          100: 'This video is private or no longer available.',
+          101: 'The owner does not allow this video to play here.',
+          150: 'The owner does not allow this video to play here.',
+          153: 'YouTube could not identify this site. Try the hosted app or check browser privacy settings.'
+        };
+        playerMessage(wrap, messages[event.data] || 'YouTube could not play this video.', true);
+      }
+    } });
+  }).catch(() => {
+    if (players.get(key) === record) playerMessage(wrap, 'Shared controls could not load. Use the video’s own controls or reload the page.', true);
+  });
+}
+
+function destroyPlayer(key) {
+  const record = players.get(key);
+  if (!record) return;
+  players.delete(key);
+  clearTimeout(record.timer);
+  record.player?.destroy();
+}
+
+document.getElementById('muteAll').addEventListener('click', muteAll);
+document.getElementById('pauseAll').addEventListener('click', () => {
+  allPaused = true;
+  for (const record of players.values()) if (record.ready) record.player.pauseVideo();
+  setSetupStatus('All videos paused.');
+});
+document.getElementById('playAll').addEventListener('click', () => {
+  allPaused = false;
+  for (const record of players.values()) if (record.ready) record.player.playVideo();
+  setSetupStatus('Playback requested. If a video stays paused, click its Play button.');
+});
+
 /* ─── Session persistence, presets, and sharing ─── */
 const SESSION_KEY = 'multiwin.session.v1';
 const PRESETS_KEY = 'multiwin.presets.v1';
@@ -656,6 +818,7 @@ function setSetupStatus(message) {
 function getSetup() {
   return {
     version: 1,
+    audioKey,
     videos: [...grid.querySelectorAll('.video-wrapper')].map(wrap => ({
       key: wrap.dataset.key,
       id: wrap.dataset.videoId,
@@ -677,7 +840,9 @@ function validateSetup(value) {
     keys.add(video.key);
     videos.push({ key: video.key, id: video.id, size: video.size, start: video.start });
   }
-  return { version: 1, videos };
+  const selected = value.audioKey ?? null;
+  if (selected !== null && !keys.has(selected)) return null;
+  return { version: 1, audioKey: selected, videos };
 }
 
 function writeStorage(key, value) {
@@ -700,6 +865,9 @@ function saveSession() {
 
 function restoreSetup(setup) {
   restoring = true;
+  [...players.keys()].forEach(destroyPlayer);
+  audioKey = setup.audioKey ?? null;
+  audioActive = false;
   grid.replaceChildren();
   setup.videos.forEach(createVideo);
   if (!setup.videos.length) {
@@ -722,7 +890,7 @@ function updatePresets(selected = '') {
 
 function initializeSetups() {
   if (!hasWebContext) {
-    document.querySelectorAll('.setup-toolbar button, .setup-toolbar input, .setup-toolbar select')
+    document.querySelectorAll('.setup-toolbar button, .setup-toolbar input, .setup-toolbar select, .playback-toolbar button')
       .forEach(element => element.disabled = true);
     return;
   }
