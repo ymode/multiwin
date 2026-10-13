@@ -5,12 +5,14 @@ A simple, responsive web application that allows users to watch multiple YouTube
 **[Launch Multiwin →](https://ymode.github.io/multiwin/)** — open the app, paste a
 YouTube link, and start watching. No download or installation required.
 
-![Multiwin showing three videos in Focus layout, with shared playback and visible card controls](docs/images/multiwin.jpg)
+![Multiwin showing six live news channels in a compact three-column, two-row grid](docs/images/multiwin.jpg)
 
-Screenshot film credits ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)):
-[Big Buck Bunny](https://www.bigbuckbunny.org/) © 2008 Blender Foundation;
-[Sintel](https://durian.blender.org/) © Blender Foundation;
-[Tears of Steel](https://mango.blender.org/) © Blender Foundation.
+Live news wall featuring [Sky News](https://www.youtube.com/@SkyNews),
+[DW News](https://www.youtube.com/@dwnews),
+[FRANCE 24 English](https://www.youtube.com/@france24_en),
+[CNA](https://www.youtube.com/@channelnewsasia),
+[Al Jazeera English](https://www.youtube.com/@aljazeeraenglish), and
+[Euronews](https://www.youtube.com/@euronews).
 
 
 ## Features
@@ -33,7 +35,8 @@ Screenshot film credits ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0
 
 ## Arrange the grid
 
-Choose **Auto**, **2 columns**, or **Focus one video**. The ◎ button focuses a
+Choose **Auto**, **2 columns**, or **Focus one video**. Auto balances rows to
+avoid isolated streams; six videos form a 3 × 2 wall when space allows. The ◎ button focuses a
 card, placing it first with a larger viewing area and the other videos beside
 it. On phones, every layout becomes one column. Size preferences are remembered
 and clamped to the available space. **Fullscreen grid** keeps layout and shared
@@ -48,11 +51,16 @@ Open **Saved setups & sharing** for preset and sharing controls.
 
 ## Touch, keyboard and accessibility
 
-Card controls are always visible outside the video, with 44px touch targets and
-descriptive labels. Tab reaches every available control and shows a visible focus
-ring. **Move earlier** and **Move later** below each video provide a keyboard and
-touch alternative to dragging; they announce the new position. Removal moves
-keyboard focus to a neighboring card or the input when the grid becomes empty.
+Videos sit in a compact grid with 4px gaps and thin, square edges. Card controls
+appear over the top of a video on mouse hover or keyboard focus, leaving the
+picture and news tickers unobstructed while watching. **Show video controls**
+keeps them visible for touchscreens or arranging several streams; **Hide video
+controls** clears them again. Controls never add space around a video.
+
+Buttons retain 44px touch targets, descriptive labels and visible focus rings.
+Tab reaches every available control. **Move earlier** and **Move later** provide
+a keyboard and touch alternative to dragging; they announce the new position.
+Removal moves keyboard focus to a neighboring card or the input when the grid becomes empty.
 Use **Skip to video controls** to bypass the header.
 
 Reduced-motion preferences disable animations and transitions. Continuous title
@@ -61,7 +69,7 @@ and input validation and playback messages are announced to assistive technology
 
 ## Playback controls
 
-Use **Listen to this** beneath a video to hear it while muting the others. The
+Use **Listen to this** in a video’s controls to hear it while muting the others. The
 selected card is highlighted; click **Listening · mute** or **Mute all** to
 silence it. **Pause all** and **Play all** control the whole grid. New players
 respect Pause all even if they finish loading later.

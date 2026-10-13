@@ -128,6 +128,8 @@ for (const scheme of ['http', 'https']) {
       assert.equal(await first.evaluate(el => el.style.getPropertyValue('--size')), '2');
       await first.getByRole('button', { name: 'Make video smaller', exact: true }).click();
       assert.equal(await first.evaluate(el => el.style.getPropertyValue('--size')), '1');
+      // Shrinking the card can move it out from under the pointer.
+      await first.hover();
       await first.getByRole('button', { name: 'Fullscreen video', exact: true }).click();
       await page.waitForFunction(() => document.fullscreenElement !== null);
       await page.evaluate(() => document.exitFullscreen());
@@ -274,8 +276,10 @@ test('Listen selects one player; global pause, play and mute affect every player
     await addId(page, 'M7lc1UVf-VE');
     await addId(page, 'y0sF5xhGreA');
     const audio = page.locator('.audio-btn');
+    await page.locator('.video-wrapper').first().hover();
     await audio.first().click();
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [false, true]);
+    await page.locator('.video-wrapper').last().hover();
     await audio.last().click();
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [true, false]);
     await page.locator('#pauseAll').click();
@@ -295,6 +299,7 @@ test('audio choice restores muted and API failures offer recovery', async () => 
   const page = await openApp();
   try {
     await addId(page, 'M7lc1UVf-VE');
+    await page.locator('.video-wrapper').hover();
     await page.locator('.audio-btn').click();
     await page.reload();
     await page.waitForFunction(() => [...players.values()].every(r => r.ready));
@@ -453,21 +458,28 @@ test('keyboard reordering keeps focus and removal recovers to a neighboring card
   } finally { await page.close(); }
 });
 
-test('touch controls stay visible, have usable targets, and respect reduced motion', async () => {
+test('touch users can show controls without adding borders or shifting videos', async () => {
   const page = await openApp({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
   try {
     await addId(page, 'M7lc1UVf-VE');
     await addId(page, 'y0sF5xhGreA');
+    const before = await page.locator('iframe').first().boundingBox();
+    assert.equal(await page.locator('.card-tools').first().evaluate(el => getComputedStyle(el).opacity), '0');
+    await page.getByRole('button', { name: 'Show video controls', exact: true }).tap();
+    assert.equal(await page.locator('#showVideoControls').getAttribute('aria-pressed'), 'true');
+    assert.deepEqual(await page.locator('iframe').first().boundingBox(), before);
     for (const button of await page.locator('.video-wrapper').first().locator('button').all()) {
       assert.equal(await button.isVisible(), true);
       const box = await button.boundingBox();
       assert.ok(box.width >= 44 && box.height >= 44);
     }
-    assert.equal(await page.locator('.controls').first().evaluate(el => getComputedStyle(el).opacity), '1');
+    assert.equal(await page.locator('.card-tools').first().evaluate(el => getComputedStyle(el).opacity), '1');
     assert.equal(await page.locator('h1').evaluate(el => getComputedStyle(el).animationName), 'none');
     assert.equal(await page.locator('.video-wrapper').first().evaluate(el => getComputedStyle(el).transitionDuration), '0s');
     await page.locator('.move-later').first().tap();
     assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'y0sF5xhGreA');
+    await page.getByRole('button', { name: 'Hide video controls', exact: true }).tap();
+    assert.equal(await page.locator('.card-tools').first().evaluate(el => getComputedStyle(el).opacity), '0');
     assert.equal(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth), true);
   } finally { await page.close(); }
 });
@@ -478,6 +490,7 @@ test('the populated interface has no detected WCAG A/AA violations', async () =>
     await addId(page, 'M7lc1UVf-VE');
     await page.waitForFunction(() => [...players.values()].every(r => r.ready));
     await page.locator('#savedSetups summary').click();
+    await page.locator('#showVideoControls').click();
     await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
     const violations = await page.evaluate(async () => (await axe.run(document, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] }
@@ -493,10 +506,47 @@ test('the drag handle can drop over a video without the iframe swallowing pointe
     await addId(page, 'y0sF5xhGreA');
     const target = page.locator('.player-frame').last();
     const box = await target.boundingBox();
+    await page.locator('.video-wrapper').first().hover();
     await page.locator('.drag-handle').first().dragTo(target, {
-      targetPosition: { x: box.width - 30, y: 40 }
+      targetPosition: { x: box.width - 30, y: box.height - 50 }
     });
     assert.deepEqual(await page.evaluate(() => getSetup().videos.map(v => v.id)), ['y0sF5xhGreA', 'M7lc1UVf-VE']);
     assert.equal(await page.locator('#grid').evaluate(el => el.classList.contains('is-dragging')), false);
+  } finally { await page.close(); }
+});
+
+test('six streams form a compact 3 by 2 wall with controls revealed by hover and keyboard', async () => {
+  const page = await openApp({ viewport: { width: 1920, height: 1080 } });
+  try {
+    await page.locator('#urlInput').fill(Array(6).fill('M7lc1UVf-VE').join('\n'));
+    await page.locator('#addBtn').click();
+    await page.waitForFunction(() => players.size === 6 && [...players.values()].every(r => r.ready));
+    const cards = await page.locator('.video-wrapper').all();
+    const boxes = await Promise.all(cards.map(card => card.boundingBox()));
+    assert.equal(boxes[0].y, boxes[2].y);
+    assert.equal(boxes[3].y, boxes[5].y);
+    assert.equal(boxes[3].x, boxes[0].x);
+    assert.ok(boxes[3].y > boxes[0].y);
+    assert.equal(Math.round(boxes[1].x - boxes[0].x - boxes[0].width), 4);
+    const frameBox = await cards[0].locator('iframe').boundingBox();
+    assert.equal(Math.round(boxes[0].height - frameBox.height), 2);
+    const tools = cards[0].locator('.card-tools');
+    assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '0');
+    await cards[0].hover();
+    assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '1');
+    await cards[0].locator('.audio-btn').click();
+    await page.mouse.move(0, 0);
+    assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '0');
+    // Tab from the last toolbar button reaches the first card control.
+    await page.locator('#gridFullscreen').focus();
+    await page.keyboard.press('Tab');
+    assert.equal(await cards[0].locator('.drag-handle').evaluate(el => el === document.activeElement), true);
+    assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '1');
+    assert.deepEqual(await cards[0].locator('iframe').boundingBox(), frameBox);
+    await page.locator('#showVideoControls').click();
+    await page.locator('#gridFullscreen').click();
+    await page.waitForFunction(() => document.fullscreenElement?.id === 'viewer');
+    assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '1');
+    await page.evaluate(() => document.exitFullscreen());
   } finally { await page.close(); }
 });
