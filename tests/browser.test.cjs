@@ -124,11 +124,11 @@ for (const scheme of ['http', 'https']) {
       assert.equal(await page.locator('#urlInput').inputValue(), '');
       const first = page.locator('.video-wrapper').first();
       await first.hover();
-      await first.getByRole('button', { name: '+', exact: true }).click();
+      await first.getByRole('button', { name: 'Make video larger', exact: true }).click();
       assert.equal(await first.evaluate(el => el.style.getPropertyValue('--size')), '2');
-      await first.getByRole('button', { name: '−', exact: true }).click();
+      await first.getByRole('button', { name: 'Make video smaller', exact: true }).click();
       assert.equal(await first.evaluate(el => el.style.getPropertyValue('--size')), '1');
-      await first.getByRole('button', { name: '⛶', exact: true }).click();
+      await first.getByRole('button', { name: 'Fullscreen video', exact: true }).click();
       await page.waitForFunction(() => document.fullscreenElement !== null);
       await page.evaluate(() => document.exitFullscreen());
       // Reorder via the browser's drag events using the existing handlers.
@@ -375,6 +375,7 @@ test('layout and focus restore; mobile sizing stays inside the viewport; whole g
     assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'dQw4w9WgXcQ');
     await page.reload();
     assert.equal(await page.locator('#layoutMode').inputValue(), 'focus');
+    await page.waitForFunction(() => [...players.values()].every(r => r.ready));
     if (process.env.REVIEW_SCREENSHOTS) await page.screenshot({ path: '/tmp/multiwin-desktop.png', fullPage: true, animations: 'disabled' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => adjustSize(grid.querySelector('.video-wrapper'), 2));
@@ -427,5 +428,75 @@ test('mixed batches preserve rejected input and timestamps survive refresh', asy
     assert.equal(await page.locator('.video-wrapper').count(), 2);
     await page.locator('#urlInput').press('Enter');
     assert.equal(await page.locator('.video-wrapper').count(), 3);
+  } finally { await page.close(); }
+});
+
+test('keyboard reordering keeps focus and removal recovers to a neighboring card', async () => {
+  const page = await openApp({ reducedMotion: 'reduce' });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await addId(page, 'y0sF5xhGreA');
+    const firstKey = await page.locator('.video-wrapper').first().getAttribute('data-key');
+    await page.locator('.move-later').first().focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('.video-wrapper').last().getAttribute('data-key'), firstKey);
+    assert.equal(await page.locator('.move-earlier').last().evaluate(el => el === document.activeElement), true);
+    assert.match(await page.locator('#setupStatus').innerText(), /position 2 of 2/);
+    await page.locator('.ctrl.close').last().focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('.video-wrapper').length === 1);
+    assert.equal(await page.locator('.video-wrapper').evaluate(el => el.contains(document.activeElement)), true);
+    await page.locator('.ctrl.close').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('.video-wrapper').length === 0);
+    assert.equal(await page.locator('#urlInput').evaluate(el => el === document.activeElement), true);
+  } finally { await page.close(); }
+});
+
+test('touch controls stay visible, have usable targets, and respect reduced motion', async () => {
+  const page = await openApp({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await addId(page, 'y0sF5xhGreA');
+    for (const button of await page.locator('.video-wrapper').first().locator('button').all()) {
+      assert.equal(await button.isVisible(), true);
+      const box = await button.boundingBox();
+      assert.ok(box.width >= 44 && box.height >= 44);
+    }
+    assert.equal(await page.locator('.controls').first().evaluate(el => getComputedStyle(el).opacity), '1');
+    assert.equal(await page.locator('h1').evaluate(el => getComputedStyle(el).animationName), 'none');
+    assert.equal(await page.locator('.video-wrapper').first().evaluate(el => getComputedStyle(el).transitionDuration), '0s');
+    await page.locator('.move-later').first().tap();
+    assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'y0sF5xhGreA');
+    assert.equal(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth), true);
+  } finally { await page.close(); }
+});
+
+test('the populated interface has no detected WCAG A/AA violations', async () => {
+  const page = await openApp({ reducedMotion: 'reduce' });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await page.waitForFunction(() => [...players.values()].every(r => r.ready));
+    await page.locator('#savedSetups summary').click();
+    await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
+    const violations = await page.evaluate(async () => (await axe.run(document, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] }
+    })).violations.map(({ id, nodes }) => ({ id, targets: nodes.map(n => n.target) })));
+    assert.deepEqual(violations, []);
+  } finally { await page.close(); }
+});
+
+test('the drag handle can drop over a video without the iframe swallowing pointer events', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await addId(page, 'y0sF5xhGreA');
+    const target = page.locator('.player-frame').last();
+    const box = await target.boundingBox();
+    await page.locator('.drag-handle').first().dragTo(target, {
+      targetPosition: { x: box.width - 30, y: 40 }
+    });
+    assert.deepEqual(await page.evaluate(() => getSetup().videos.map(v => v.id)), ['y0sF5xhGreA', 'M7lc1UVf-VE']);
+    assert.equal(await page.locator('#grid').evaluate(el => el.classList.contains('is-dragging')), false);
   } finally { await page.close(); }
 });

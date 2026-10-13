@@ -24,7 +24,7 @@ jobs:
           node-version: '22'
       - name: Install browser test tools (development only)
         run: |
-          npm install --no-save --package-lock=false playwright
+          npm ci
           npx playwright install --with-deps chromium
       - name: Check embedding context and UI
         env:

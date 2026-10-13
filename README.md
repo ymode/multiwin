@@ -34,12 +34,25 @@ it. On phones, every layout becomes one column. Size preferences are remembered
 and clamped to the available space. **Fullscreen grid** keeps layout and shared
 playback controls available while hiding the page header.
 
-Drag a card to the left or right half of another card to insert it before or
+Drag a card’s ⠿ handle to the left or right half of another card to insert it before or
 after that card; a green edge shows the destination. Focus mode keeps its main
 video first, so switch to Auto or 2 columns to reorder. Browsers supporting
 `Element.moveBefore` retain the embedded player while moving it; older browsers
 may reload the moved embed. Layout and focused video are saved with setups.
 Open **Saved setups & sharing** for preset and sharing controls.
+
+## Touch, keyboard and accessibility
+
+Card controls are always visible outside the video, with 44px touch targets and
+descriptive labels. Tab reaches every available control and shows a visible focus
+ring. **Move earlier** and **Move later** below each video provide a keyboard and
+touch alternative to dragging; they announce the new position. Removal moves
+keyboard focus to a neighboring card or the input when the grid becomes empty.
+Use **Skip to video controls** to bypass the header.
+
+Reduced-motion preferences disable animations and transitions. Continuous title
+and empty-state animations have been removed. The YouTube iframe has a title,
+and input validation and playback messages are announced to assistive technology.
 
 ## Playback controls
 
@@ -96,7 +109,7 @@ ones again. Repeated video links are allowed for comparing different moments.
 - Pure HTML, CSS, and JavaScript implementation
 - No build step or third-party application dependencies
 - Responsive design using CSS Grid
-- YouTube iframe embeds
+- YouTube iframe embeds with the IFrame Player API for shared controls
 
 ## Browser Support
 
@@ -185,13 +198,13 @@ Test the local launcher using the Python standard library:
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-For browser regression checks, install the **development-only** Playwright tool
+For browser regression checks, install the **development-only** Playwright and axe-core tools
 (Node.js 18+), then run:
 
 ```sh
-npm install --no-save --package-lock=false playwright
+npm ci
 npx playwright install chromium
-node --test tests/browser.test.cjs
+npm test
 ```
 
 Set `PYTHON` to your Python 3 executable if it is not `python3` (for example,
@@ -210,6 +223,10 @@ confirm the video actually advances, then test adding a second video, resizing,
 reordering, fullscreen and removal. Check the embed request's `Referer` in Network
 tools. Record the browser, launch URL and any YouTube error; loading an iframe
 alone is not a successful playback test.
+
+Keyboard, touch, focus recovery, and automated WCAG A/AA accessibility checks
+run against intercepted players as part of the deterministic suite. Automated
+checks cover the app interface; they do not certify third-party YouTube content.
 
 ## License
 

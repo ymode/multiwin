@@ -9,7 +9,7 @@
 <style>
 /* ─────────  Variables & Reset  ───────── */
 :root {
-  --primary: #FF0000;
+  --primary: #ce2525;
   --primary-dark: #CC0000;
   --bg-main: #0f0f0f;
   --bg-secondary: #1a1a1a;
@@ -20,7 +20,7 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
   --radius: 12px;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: background-color .15s, border-color .15s, box-shadow .15s;
 }
 
 * {
@@ -58,13 +58,8 @@ h1 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: glow 3s ease-in-out infinite;
 }
 
-@keyframes glow {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.2); }
-}
 
 .subtitle {
   color: var(--text-secondary);
@@ -191,13 +186,8 @@ h1 {
   display: grid;
   grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr));
   gap: 1rem;
-  animation: fadeIn 0.5s ease-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 
 /* ─────────  Video Cards  ───────── */
 .video-wrapper {
@@ -209,31 +199,17 @@ h1 {
   border-radius: var(--radius);
   overflow: hidden;
   transition: var(--transition);
-  cursor: move;
-  animation: slideIn 0.4s ease-out;
   border: 1px solid var(--border-color);
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8) rotate(-5deg);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(0);
-  }
-}
 
 .video-wrapper:hover {
-  transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
   border-color: var(--primary);
 }
 
 .video-wrapper.dragging {
   opacity: 0.5;
-  transform: scale(0.95);
   cursor: grabbing;
 }
 
@@ -245,27 +221,18 @@ h1 {
 
 /* ─────────  Video Controls  ───────── */
 .controls {
-  position: absolute;
-  top: 0;
-  right: 0;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 4px;
   padding: 8px;
-  background: linear-gradient(to bottom right, rgba(0,0,0,0.8), rgba(0,0,0,0.4));
-  border-radius: 0 var(--radius) 0 20px;
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: var(--transition);
-}
-
-.video-wrapper:hover .controls {
-  opacity: 1;
-  transform: translateY(0);
+  background: var(--bg-card);
 }
 
 .ctrl {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 50%;
   font-size: 18px;
@@ -281,11 +248,9 @@ h1 {
 
 .ctrl:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
 }
 
 .ctrl:active {
-  transform: scale(0.95);
 }
 
 .ctrl.close {
@@ -301,13 +266,8 @@ h1 {
   text-align: center;
   padding: 4rem 2rem;
   color: var(--text-secondary);
-  animation: pulse 2s ease-in-out infinite;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
 
 .empty-state h2 {
   font-size: 1.5rem;
@@ -349,12 +309,12 @@ h1 {
 @keyframes shimmer {
   to { left: 100%; }
 }
-.player-frame { aspect-ratio: 16/9; }
+.player-frame { aspect-ratio: 16/9; min-height: 200px; }
 .player-status { padding: .65rem; font-size: .9rem; line-height: 1.5; }
 .player-status:empty { display: none; }
 .player-status a { color: var(--text-primary); margin-left: .5rem; }
 .video-wrapper.audio-selected { border-color: #56d992; }
-.audio-btn { margin: .5rem; }
+.audio-btn { margin: 0; }
 .audio-btn[aria-pressed="true"] { color: #56d992; border-color: #56d992; }
 .playback-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin: 1rem auto; }
 .viewer-toolbar { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; padding: .5rem 1rem; }
@@ -375,6 +335,21 @@ h1 {
 #inputFeedback:empty { display: none; }
 #inputFeedback { color: #ffb4ab; }
 #urlInput[aria-invalid="true"] { box-shadow: inset 0 0 0 2px #ffb4ab; }
+.card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem; }
+.reorder-controls { display: flex; gap: 4px; }
+.drag-handle { margin-right: auto; cursor: grab; }
+#grid.is-dragging iframe { pointer-events: none; }
+.ctrl:disabled { opacity: .4; cursor: not-allowed; }
+.video-wrapper:focus-within { border-color: #78baff; }
+:focus-visible { outline: 3px solid #78baff; outline-offset: 3px; }
+#urlInput:focus-visible { outline: 3px solid #78baff; outline-offset: -3px; }
+#urlLabel { display: block; max-width: 800px; margin: 0 auto .4rem; text-align: left; }
+.skip-link { position: absolute; top: -100px; left: 1rem; z-index: 100; color: white; background: #242424; padding: 1rem; }
+.skip-link:focus { top: 1rem; }
+@keyframes removeCard { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
 /* ───────── Saved setups ───────── */
 .setup-toolbar {
   max-width: 1000px;
@@ -397,13 +372,14 @@ h1 {
 }
 .tool-btn { cursor: pointer; }
 .tool-btn:disabled { opacity: .5; cursor: not-allowed; }
-#setupStatus { min-height: 1.5em; margin: .75rem auto 0; color: var(--text-secondary); }
+#setupStatus { text-align: center; padding: 0 1rem; min-height: 1.5em; margin: .75rem auto 0; color: var(--text-secondary); }
 #shareFallback { max-width: 800px; margin: .75rem auto; }
 #shareURL { width: 100%; padding: .75rem; }
 </style>
 </head>
 
 <body>
+<a class="skip-link" href="#viewer">Skip to video controls</a>
 <header>
   <div class="header-content">
     <h1>Multiwin</h1>
@@ -415,9 +391,10 @@ h1 {
         then use the HTTP address printed in the terminal. Keep the terminal open.</p>
       <a href="https://github.com/ymode/multiwin#installation">Installation and hosting instructions</a>
     </div>
+    <label id="urlLabel" for="urlInput">YouTube links</label>
     <div class="input-container">
       <div class="input-wrapper">
-        <textarea id="urlInput" rows="2" maxlength="32768" placeholder="Paste YouTube links or video IDs, one per line…" autocomplete="off" spellcheck="false" aria-label="YouTube links" aria-describedby="inputHint inputFeedback"></textarea>
+        <textarea id="urlInput" rows="2" maxlength="32768" placeholder="Paste YouTube links or video IDs, one per line…" autocomplete="off" spellcheck="false" aria-describedby="inputHint inputFeedback"></textarea>
       </div>
       <button id="addBtn">Add videos</button>
     </div>
@@ -436,7 +413,6 @@ h1 {
       <button id="shareSetup" class="tool-btn">Copy setup link</button>
     </div>
     </details>
-    <p id="setupStatus" role="status" aria-live="polite"></p>
     <div id="shareFallback" hidden>
       <label for="shareURL">Copy this setup link</label>
       <input id="shareURL" readonly>
@@ -444,7 +420,7 @@ h1 {
   </div>
 </header>
 
-<section id="viewer" aria-label="Video viewer">
+<section id="viewer" aria-label="Video viewer" tabindex="-1">
 <div class="viewer-toolbar">
     <div class="playback-toolbar" role="group" aria-label="Playback">
       <button id="playAll" class="tool-btn">Play all</button>
@@ -461,7 +437,8 @@ h1 {
     <button id="gridFullscreen" class="tool-btn">Fullscreen grid</button>
   </div>
 </div>
-<main id="grid">
+<p id="setupStatus" role="status" aria-live="polite"></p>
+<main id="grid" aria-label="Video grid">
   <div class="empty-state">
     <h2>🎬 No videos yet</h2>
     <p>Add YouTube URLs above to start watching</p>
@@ -538,11 +515,7 @@ function parseYouTubeLink(input) {
 
 /* ─── Remove Empty State ─── */
 function removeEmptyState() {
-  const emptyState = grid.querySelector('.empty-state');
-  if (emptyState) {
-    emptyState.style.animation = 'fadeOut 0.3s ease-out';
-    setTimeout(() => emptyState.remove(), 300);
-  }
+  grid.querySelector('.empty-state')?.remove();
 }
 
 /* ─── Video Creation ─── */
@@ -589,13 +562,14 @@ function makeVideoKey() {
 function createVideo({ id, key, size = 1, start = 0 }) {
   removeEmptyState();
   // Create video container
-  const wrap = document.createElement('div');
+  const wrap = document.createElement('article');
   wrap.className = 'video-wrapper';
+  wrap.setAttribute('aria-label', 'Video ' + id);
   wrap.dataset.videoId = id;
   wrap.dataset.key = key;
   wrap.dataset.start = start;
   wrap.style.setProperty('--size', size);
-  wrap.draggable = true;
+  wrap.draggable = false;
 
   // Drag and drop handlers
   wrap.addEventListener('dragstart', handleDragStart);
@@ -608,18 +582,24 @@ function createVideo({ id, key, size = 1, start = 0 }) {
   controls.className = 'controls';
 
   const buttons = [
-    { icon: '◎', class: 'ctrl focus-video', action: () => focusVideo(wrap) },
-    { icon: '−', class: 'ctrl', action: () => adjustSize(wrap, -1) },
-    { icon: '+', class: 'ctrl', action: () => adjustSize(wrap, 1) },
-    { icon: '⛶', class: 'ctrl', action: () => toggleFullscreen(wrap) },
-    { icon: '✕', class: 'ctrl close', action: () => removeVideo(wrap) }
+    { icon: '⠿', label: 'Drag to reorder video', className: 'ctrl drag-handle', action: () => {
+      setSetupStatus('Drag this handle, or use Move earlier and Move later below the video.');
+    } },
+    { icon: '◎', label: 'Focus video', className: 'ctrl focus-video', action: () => focusVideo(wrap) },
+    { icon: '−', label: 'Make video smaller', className: 'ctrl size-down', action: () => adjustSize(wrap, -1) },
+    { icon: '+', label: 'Make video larger', className: 'ctrl size-up', action: () => adjustSize(wrap, 1) },
+    { icon: '⛶', label: 'Fullscreen video', className: 'ctrl', action: () => toggleFullscreen(wrap) },
+    { icon: '✕', label: 'Remove video', className: 'ctrl close', action: () => removeVideo(wrap) }
   ];
-
-  buttons.forEach(({ icon, class: className, action }) => {
+  buttons.forEach(({ icon, label, className, action }) => {
     const btn = document.createElement('button');
+    btn.type = 'button';
     btn.className = className;
     btn.textContent = icon;
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
     btn.onclick = action;
+    if (className.includes('drag-handle')) btn.draggable = true;
     controls.appendChild(btn);
   });
 
@@ -646,7 +626,24 @@ function createVideo({ id, key, size = 1, start = 0 }) {
   status.className = 'player-status';
   status.setAttribute('role', 'status');
   status.textContent = 'Loading player controls…';
-  wrap.append(controls, frame, listen, status);
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const reorder = document.createElement('div');
+  reorder.className = 'reorder-controls';
+  reorder.setAttribute('role', 'group');
+  reorder.setAttribute('aria-label', 'Reorder video');
+  for (const [direction, label, icon] of [[-1, 'Move earlier', '←'], [1, 'Move later', '→']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ctrl ' + (direction < 0 ? 'move-earlier' : 'move-later');
+    button.textContent = icon;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.onclick = () => moveVideoBy(wrap, direction, button);
+    reorder.appendChild(button);
+  }
+  footer.append(listen, reorder);
+  wrap.append(controls, frame, footer, status);
   grid.appendChild(wrap);
   connectPlayer(wrap, iframe);
   applyLayout();
@@ -663,24 +660,33 @@ function adjustSize(wrap, direction) {
 }
 
 /* ─── Fullscreen ─── */
-function toggleFullscreen(wrap) {
-  if (!document.fullscreenElement) {
-    wrap.requestFullscreen().catch(err => console.log(err));
-  } else {
-    document.exitFullscreen();
+async function toggleFullscreen(wrap) {
+  try {
+    if (!document.fullscreenElement) {
+      if (!wrap.requestFullscreen) throw new Error('Fullscreen unavailable');
+      await wrap.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch {
+    setSetupStatus('Fullscreen is unavailable in this browser. You can use the video’s own fullscreen control.');
   }
 }
 
 /* ─── Remove Video ─── */
 function removeVideo(wrap) {
-  wrap.style.animation = 'slideOut 0.3s ease-out';
+  const delay = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 150;
+  wrap.style.animation = 'removeCard .15s ease-out';
   setTimeout(() => {
     if (!wrap.isConnected) return;
+    const restoreFocus = wrap.contains(document.activeElement);
+    const neighbor = wrap.nextElementSibling || wrap.previousElementSibling;
     destroyPlayer(wrap.dataset.key);
     if (audioKey === wrap.dataset.key) { audioKey = null; audioActive = false; }
     wrap.remove();
     applyLayout();
     saveSession();
+    if (restoreFocus) (neighbor?.querySelector('.ctrl:not(:disabled)') || urlInput).focus();
     if (grid.children.length === 0) {
       grid.innerHTML = `
         <div class="empty-state">
@@ -689,7 +695,7 @@ function removeVideo(wrap) {
         </div>
       `;
     }
-  }, 300);
+  }, delay);
 }
 
 /* ─── Layout and drag ordering ─── */
@@ -704,12 +710,19 @@ function applyLayout() {
   grid.style.setProperty('--columns', columns);
   const focus = layoutMode.value === 'focus' && columns > 1;
   grid.classList.toggle('focus-layout', focus);
-  cards.forEach(card => {
+  cards.forEach((card, index) => {
     const selected = focus && card.dataset.key === focusedKey;
     const span = layoutMode.value === 'focus' ? 1 : Math.min(Number(card.style.getPropertyValue('--size')) || 1, columns);
     card.style.setProperty('--span', span);
     card.style.gridRow = selected ? 'span ' + Math.max(1, cards.length - 1) : '';
-    card.draggable = layoutMode.value !== 'focus';
+    const canReorder = layoutMode.value !== 'focus';
+    card.querySelector('.drag-handle').draggable = canReorder;
+    card.querySelector('.drag-handle').disabled = !canReorder;
+    card.querySelector('.move-earlier').disabled = !canReorder || index === 0;
+    card.querySelector('.move-later').disabled = !canReorder || index === cards.length - 1;
+    const preferred = Number(card.style.getPropertyValue('--size')) || 1;
+    card.querySelector('.size-down').disabled = !canReorder || columns === 1 || preferred <= 1;
+    card.querySelector('.size-up').disabled = !canReorder || preferred >= columns;
   });
 }
 
@@ -718,6 +731,19 @@ function moveCard(wrap, before) {
   // Preserve the embedded browsing context in browsers supporting atomic moves.
   if (typeof grid.moveBefore === 'function') grid.moveBefore(wrap, before);
   else grid.insertBefore(wrap, before);
+}
+
+function moveVideoBy(wrap, direction, button) {
+  const cards = [...grid.querySelectorAll('.video-wrapper')];
+  const index = cards.indexOf(wrap);
+  const next = index + direction;
+  if (layoutMode.value === 'focus' || next < 0 || next >= cards.length) return;
+  moveCard(wrap, direction < 0 ? cards[next] : cards[next + 1] || null);
+  applyLayout();
+  // At a boundary the pressed button becomes disabled; keep focus in this card.
+  (button.disabled ? wrap.querySelector(direction < 0 ? '.move-later' : '.move-earlier') : button).focus();
+  setSetupStatus('Video moved to position ' + (next + 1) + ' of ' + cards.length + '.');
+  saveSession();
 }
 
 function focusVideo(wrap) {
@@ -745,11 +771,13 @@ function clearDropTargets() {
 function handleDragStart(e) {
   if (layoutMode.value === 'focus') { e.preventDefault(); return; }
   draggedElement = this;
+  grid.classList.add('is-dragging');
   this.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', this.dataset.key);
 }
 function handleDragEnd() {
+  grid.classList.remove('is-dragging');
   this.classList.remove('dragging');
   clearDropTargets();
   draggedElement = null;
@@ -769,6 +797,8 @@ function handleDrop(e) {
   const box = this.getBoundingClientRect();
   const before = e.clientX < box.left + box.width / 2 ? this : this.nextElementSibling;
   moveCard(draggedElement, before);
+  grid.classList.remove('is-dragging');
+  draggedElement.classList.remove('dragging');
   clearDropTargets();
   applyLayout();
   saveSession();
@@ -784,21 +814,6 @@ urlInput.addEventListener('input', () => {
   urlInput.removeAttribute('aria-invalid');
   document.getElementById('inputFeedback').textContent = '';
 });
-
-/* ─── Removal animations ─── */
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes slideOut {
-    to {
-      opacity: 0;
-      transform: scale(0.8) rotate(5deg);
-    }
-  }
-  @keyframes fadeOut {
-    to { opacity: 0; transform: translateY(-20px); }
-  }
-`;
-document.head.appendChild(style);
 
 /* ─── YouTube player controls ─── */
 function loadPlayerAPI() {
@@ -1090,8 +1105,8 @@ document.getElementById('loadPreset').addEventListener('click', () => {
   const preset = presets[Number(presetSelect.value)];
   if (!preset || presetSelect.value === '') return;
   restoreSetup(preset.setup);
-  saveSession();
   setSetupStatus('Loaded preset: ' + preset.name);
+  saveSession();
 });
 document.getElementById('deletePreset').addEventListener('click', () => {
   if (presetSelect.value === '') return;
