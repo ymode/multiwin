@@ -1,4 +1,4 @@
-// YouTube is intercepted: these check browser behaviour, NOT live playback.
+// Deterministic checks intercept YouTube. LIVE_YOUTUBE=1 opts into live diagnostics.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
@@ -119,6 +119,46 @@ for (const scheme of ['http', 'https']) {
       }
       assert.equal(await page.locator('.empty-state').isVisible(), true);
       assert.deepEqual(errors, []);
+    } finally { await page.close(); }
+  });
+}
+
+for (const videoId of ['y0sF5xhGreA', 'M7lc1UVf-VE']) {
+  test(`live playback diagnostic: ${videoId}`, { skip: !process.env.LIVE_YOUTUBE }, async t => {
+    const page = await browser.newPage();
+    let referer;
+    page.on('request', request => {
+      if (request.url().startsWith('https://www.youtube.com/embed/')) {
+        referer = request.headers().referer;
+      }
+    });
+    try {
+      await page.goto(localURL);
+      await page.locator('#urlInput').fill(videoId);
+      await page.locator('#addBtn').click();
+      const video = page.frameLocator('iframe').locator('video').first();
+      await video.waitFor({ timeout: 15000 });
+      const start = await video.evaluate(element => element.currentTime);
+      // Require actual media progress, not just a loaded iframe or thumbnail.
+      await video.evaluate((element, startTime) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { clearInterval(poll); reject(new Error('Media did not advance')); }, 15000);
+        const poll = setInterval(() => {
+          if (!element.paused && element.readyState >= 2 && element.currentTime > startTime + 1) {
+            clearTimeout(timer);
+            clearInterval(poll);
+            resolve();
+          }
+        }, 250);
+      }), start);
+      t.diagnostic(JSON.stringify({ browser: browser.version(), url: localURL,
+        videoId, referer, result: 'media time advanced by more than one second' }));
+    } catch (error) {
+      const frame = page.frames().find(frame => frame.url().startsWith('https://www.youtube.com/embed/'));
+      const message = frame ? await frame.locator('body').innerText({ timeout: 2000 }).catch(() => '') : '';
+      t.diagnostic(JSON.stringify({ browser: browser.version(), url: localURL,
+        videoId, referer, error: error.message, playerText: message.slice(0, 1500) }));
+      // Network/bot/video restrictions are not deterministic app test failures.
+      t.skip('Live playback NOT verified; see diagnostic above.');
     } finally { await page.close(); }
   });
 }

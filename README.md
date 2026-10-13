@@ -127,6 +127,12 @@ Set `PYTHON` to your Python 3 executable if it is not `python3` (for example,
 to verify the real browser-generated referrer and UI behaviour without depending
 on YouTube availability. **They do not prove actual YouTube playback.**
 
+Set `LIVE_YOUTUBE=1` to also attempt live playback of the issue's video and
+YouTube's API example video. This opt-in diagnostic requires media time to
+advance, and reports blocked playback as **skipped, not verified** with details.
+CI enables this diagnostic; a green workflow alone does not mean live playback
+passed. Read the diagnostic results in the job log.
+
 For a live playback check, launch Multiwin, add a known embeddable video and
 confirm the video actually advances, then test adding a second video, resizing,
 reordering, fullscreen and removal. Check the embed request's `Referer` in Network

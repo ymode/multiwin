@@ -27,4 +27,6 @@ jobs:
           npm install --no-save --package-lock=false playwright
           npx playwright install --with-deps chromium
       - name: Check embedding context and UI
+        env:
+          LIVE_YOUTUBE: '1'
         run: node --test tests/browser.test.cjs
