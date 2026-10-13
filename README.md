@@ -21,8 +21,8 @@ YouTube link, and start watching. No download or installation required.
 ## Usage
 
 1. Launch the application using the [installation instructions](#installation) below
-2. Paste a YouTube URL into the input field
-3. Click "Add Video" or press Enter to add the video to the grid
+2. Paste one or more YouTube URLs into the input field (separate them with spaces or new lines)
+3. Click "Add videos" or press Enter to add them to the grid; Shift+Enter inserts a new line
 4. Repeat to add more videos
 5. Click the '×' button on any video to remove it from the grid
 
@@ -34,12 +34,25 @@ it. On phones, every layout becomes one column. Size preferences are remembered
 and clamped to the available space. **Fullscreen grid** keeps layout and shared
 playback controls available while hiding the page header.
 
-Drag a card to the left or right half of another card to insert it before or
+Drag a card’s ⠿ handle to the left or right half of another card to insert it before or
 after that card; a green edge shows the destination. Focus mode keeps its main
 video first, so switch to Auto or 2 columns to reorder. Browsers supporting
 `Element.moveBefore` retain the embedded player while moving it; older browsers
 may reload the moved embed. Layout and focused video are saved with setups.
 Open **Saved setups & sharing** for preset and sharing controls.
+
+## Touch, keyboard and accessibility
+
+Card controls are always visible outside the video, with 44px touch targets and
+descriptive labels. Tab reaches every available control and shows a visible focus
+ring. **Move earlier** and **Move later** below each video provide a keyboard and
+touch alternative to dragging; they announce the new position. Removal moves
+keyboard focus to a neighboring card or the input when the grid becomes empty.
+Use **Skip to video controls** to bypass the header.
+
+Reduced-motion preferences disable animations and transitions. Continuous title
+and empty-state animations have been removed. The YouTube iframe has a title,
+and input validation and playback messages are announced to assistive technology.
 
 ## Playback controls
 
@@ -74,17 +87,29 @@ shown when needed.
 
 ## Supported URL Formats
 
-The player supports various YouTube URL formats, including:
-- Standard watch URLs (https://www.youtube.com/watch?v=VIDEO_ID)
-- Short URLs (https://youtu.be/VIDEO_ID)
-- Embed URLs (https://www.youtube.com/embed/VIDEO_ID)
+The player accepts video IDs and these URL formats (including mobile YouTube links):
+
+- Watch: `https://www.youtube.com/watch?v=VIDEO_ID`
+- Short: `https://youtu.be/VIDEO_ID`
+- Embed: `https://www.youtube.com/embed/VIDEO_ID`
+- Live: `https://www.youtube.com/live/VIDEO_ID`
+- Shorts: `https://www.youtube.com/shorts/VIDEO_ID`
+
+Start times such as `?t=90`, `&t=1m30s`, `?start=90` and `#t=90` are preserved
+when adding, restoring and sharing videos. Supported start offsets are zero to
+seven days. Only recognized YouTube hosts and exact 11-character IDs are accepted.
+Playlist-only links need to be replaced with individual video links.
+
+For a mixed batch, valid links are added while rejected links stay in the input
+with an explanation. You can correct and resubmit them without adding the valid
+ones again. Repeated video links are allowed for comparing different moments.
 
 ## Technical Details
 
 - Pure HTML, CSS, and JavaScript implementation
 - No build step or third-party application dependencies
 - Responsive design using CSS Grid
-- YouTube iframe embeds
+- YouTube iframe embeds with the IFrame Player API for shared controls
 
 ## Browser Support
 
@@ -173,13 +198,13 @@ Test the local launcher using the Python standard library:
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-For browser regression checks, install the **development-only** Playwright tool
+For browser regression checks, install the **development-only** Playwright and axe-core tools
 (Node.js 18+), then run:
 
 ```sh
-npm install --no-save --package-lock=false playwright
+npm ci
 npx playwright install chromium
-node --test tests/browser.test.cjs
+npm test
 ```
 
 Set `PYTHON` to your Python 3 executable if it is not `python3` (for example,
@@ -198,6 +223,10 @@ confirm the video actually advances, then test adding a second video, resizing,
 reordering, fullscreen and removal. Check the embed request's `Referer` in Network
 tools. Record the browser, launch URL and any YouTube error; loading an iframe
 alone is not a successful playback test.
+
+Keyboard, touch, focus recovery, and automated WCAG A/AA accessibility checks
+run against intercepted players as part of the deterministic suite. Automated
+checks cover the app interface; they do not certify third-party YouTube content.
 
 ## License
 

@@ -1,0 +1,13 @@
+{
+  "name": "multiwin",
+  "private": true,
+  "description": "Development checks for the dependency-free Multiwin app",
+  "scripts": {
+    "test": "node --test tests/browser.test.cjs",
+    "test:server": "python3 -m unittest discover -s tests -p 'test_*.py' -v"
+  },
+  "devDependencies": {
+    "axe-core": "4.14.0",
+    "playwright": "1.64.0"
+  }
+}
