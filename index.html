@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>YouTube Grid - Modern Multiscreen Player</title>
+<title>Multiwin — YouTube multiscreen player</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 
@@ -40,7 +40,7 @@ body {
 /* ─────────  Header  ───────── */
 header {
   background: linear-gradient(to bottom, var(--bg-secondary), transparent);
-  padding: 2rem 1rem 3rem;
+  padding: 1rem;
   position: relative;
 }
 
@@ -51,7 +51,7 @@ header {
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-size: 1.6rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   background: linear-gradient(135deg, var(--primary), #ff4444);
@@ -69,7 +69,7 @@ h1 {
 .subtitle {
   color: var(--text-secondary);
   font-size: 1.1rem;
-  margin-bottom: 2rem;
+  margin-bottom: .75rem;
 }
 
 .launch-notice {
@@ -181,12 +181,12 @@ h1 {
 
 /* ─────────  Grid Layout  ───────── */
 #grid {
-  padding: 2rem;
+  padding: 1rem;
   max-width: 1800px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr));
+  gap: 1rem;
   animation: fadeIn 0.5s ease-out;
 }
 
@@ -198,7 +198,8 @@ h1 {
 /* ─────────  Video Cards  ───────── */
 .video-wrapper {
   --size: 1;
-  grid-column: span var(--size);
+  grid-column: span var(--span, 1);
+  min-width: 0;
   position: relative;
   background: var(--bg-card);
   border-radius: var(--radius);
@@ -315,12 +316,11 @@ h1 {
 
 /* ─────────  Responsive  ───────── */
 @media (max-width: 768px) {
-  h1 { font-size: 2rem; }
+  h1 { font-size: 1.6rem; }
   .subtitle { font-size: 1rem; }
   .input-container { flex-direction: column; }
   #addBtn { width: 100%; }
   #grid { 
-    grid-template-columns: 1fr;
     padding: 1rem;
   }
 }
@@ -353,6 +353,19 @@ h1 {
 .audio-btn { margin: .5rem; }
 .audio-btn[aria-pressed="true"] { color: #56d992; border-color: #56d992; }
 .playback-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin: 1rem auto; }
+.viewer-toolbar { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; padding: .5rem 1rem; }
+.viewer-toolbar .playback-toolbar, .viewer-toolbar .layout-toolbar { margin: 0; padding: 0; }
+#setupStatus:empty { display: none; }
+#savedSetups { margin: .5rem auto; max-width: 1000px; }
+#savedSetups summary { cursor: pointer; padding: .5rem; color: var(--text-secondary); }
+.layout-toolbar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .5rem; padding: .5rem 1rem; }
+.layout-toolbar select { font: inherit; padding: .65rem; color: white; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; }
+#grid.focus-layout { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+.video-wrapper.drop-before { box-shadow: -5px 0 0 #56d992; }
+.video-wrapper.drop-after { box-shadow: 5px 0 0 #56d992; }
+#viewer:fullscreen { background: var(--bg-main); overflow-y: auto; }
+.video-wrapper:fullscreen { display: flex; flex-direction: column; background: black; }
+.video-wrapper:fullscreen .player-frame { flex: 1; min-height: 0; aspect-ratio: auto; }
 /* ───────── Saved setups ───────── */
 .setup-toolbar {
   max-width: 1000px;
@@ -384,7 +397,7 @@ h1 {
 <body>
 <header>
   <div class="header-content">
-    <h1>YouTube Grid</h1>
+    <h1>Multiwin</h1>
     <p class="subtitle">Create your personalized multi-video viewing experience</p>
     <div id="launchNotice" class="launch-notice" role="alert" hidden>
       <strong>Open Multiwin through a web server to play videos.</strong>
@@ -399,11 +412,8 @@ h1 {
       </div>
       <button id="addBtn">Add Video</button>
     </div>
-    <div class="playback-toolbar" role="group" aria-label="Playback">
-      <button id="playAll" class="tool-btn">Play all</button>
-      <button id="pauseAll" class="tool-btn">Pause all</button>
-      <button id="muteAll" class="tool-btn">Mute all</button>
-    </div>
+    <details id="savedSetups">
+      <summary>Saved setups &amp; sharing</summary>
     <div class="setup-toolbar" role="group" aria-label="Saved setups">
       <label for="presetName">Preset name</label>
       <input id="presetName" maxlength="60" placeholder="e.g. Race weekend">
@@ -414,6 +424,7 @@ h1 {
       <button id="deletePreset" class="tool-btn" disabled>Delete preset</button>
       <button id="shareSetup" class="tool-btn">Copy setup link</button>
     </div>
+    </details>
     <p id="setupStatus" role="status" aria-live="polite"></p>
     <div id="shareFallback" hidden>
       <label for="shareURL">Copy this setup link</label>
@@ -422,12 +433,30 @@ h1 {
   </div>
 </header>
 
+<section id="viewer" aria-label="Video viewer">
+<div class="viewer-toolbar">
+    <div class="playback-toolbar" role="group" aria-label="Playback">
+      <button id="playAll" class="tool-btn">Play all</button>
+      <button id="pauseAll" class="tool-btn">Pause all</button>
+      <button id="muteAll" class="tool-btn">Mute all</button>
+    </div>
+  <div class="layout-toolbar" role="group" aria-label="Grid layout">
+    <label for="layoutMode">Layout</label>
+    <select id="layoutMode">
+      <option value="auto">Auto</option>
+      <option value="two">2 columns</option>
+      <option value="focus">Focus one video</option>
+    </select>
+    <button id="gridFullscreen" class="tool-btn">Fullscreen grid</button>
+  </div>
+</div>
 <main id="grid">
   <div class="empty-state">
     <h2>🎬 No videos yet</h2>
     <p>Add YouTube URLs above to start watching</p>
   </div>
 </main>
+</section>
 
 <script>
 /* ─── Core Elements ─── */
@@ -440,6 +469,8 @@ let audioKey = null;
 let audioActive = false;
 let allPaused = false;
 let apiPromise;
+const layoutMode = document.getElementById('layoutMode');
+let focusedKey = null;
 
 // Local files have no HTTP origin for the browser to identify to YouTube.
 const hasWebContext = ['http:', 'https:'].includes(window.location.protocol);
@@ -523,6 +554,7 @@ function createVideo({ id, key, size = 1, start = 0 }) {
   controls.className = 'controls';
 
   const buttons = [
+    { icon: '◎', class: 'ctrl focus-video', action: () => focusVideo(wrap) },
     { icon: '−', class: 'ctrl', action: () => adjustSize(wrap, -1) },
     { icon: '+', class: 'ctrl', action: () => adjustSize(wrap, 1) },
     { icon: '⛶', class: 'ctrl', action: () => toggleFullscreen(wrap) },
@@ -563,6 +595,7 @@ function createVideo({ id, key, size = 1, start = 0 }) {
   wrap.append(controls, frame, listen, status);
   grid.appendChild(wrap);
   connectPlayer(wrap, iframe);
+  applyLayout();
   return wrap;
 }
 
@@ -571,6 +604,7 @@ function adjustSize(wrap, direction) {
   const currentSize = parseInt(wrap.style.getPropertyValue('--size') || 1);
   const newSize = Math.max(1, Math.min(3, currentSize + direction));
   wrap.style.setProperty('--size', newSize);
+  applyLayout();
   saveSession();
 }
 
@@ -591,6 +625,7 @@ function removeVideo(wrap) {
     destroyPlayer(wrap.dataset.key);
     if (audioKey === wrap.dataset.key) { audioKey = null; audioActive = false; }
     wrap.remove();
+    applyLayout();
     saveSession();
     if (grid.children.length === 0) {
       grid.innerHTML = `
@@ -603,50 +638,86 @@ function removeVideo(wrap) {
   }, 300);
 }
 
-/* ─── Drag and Drop ─── */
-function handleDragStart(e) {
-  draggedElement = this;
-  this.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
+/* ─── Layout and drag ordering ─── */
+function applyLayout() {
+  const cards = [...grid.querySelectorAll('.video-wrapper')];
+  if (!cards.some(card => card.dataset.key === focusedKey)) focusedKey = cards[0]?.dataset.key ?? null;
+  const style = getComputedStyle(grid);
+  const available = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const gap = parseFloat(style.columnGap) || 16;
+  const fits = window.innerWidth <= 768 ? 1 : Math.max(1, Math.floor((available + gap) / (320 + gap)));
+  const columns = Math.max(1, Math.min(layoutMode.value === 'auto' ? fits : 2, fits, cards.length || 1));
+  grid.style.setProperty('--columns', columns);
+  const focus = layoutMode.value === 'focus' && columns > 1;
+  grid.classList.toggle('focus-layout', focus);
+  cards.forEach(card => {
+    const selected = focus && card.dataset.key === focusedKey;
+    const span = layoutMode.value === 'focus' ? 1 : Math.min(Number(card.style.getPropertyValue('--size')) || 1, columns);
+    card.style.setProperty('--span', span);
+    card.style.gridRow = selected ? 'span ' + Math.max(1, cards.length - 1) : '';
+    card.draggable = layoutMode.value !== 'focus';
+  });
 }
 
-function handleDragEnd(e) {
-  this.classList.remove('dragging');
-  draggedElement = null;
+function moveCard(wrap, before) {
+  if (wrap === before || wrap.nextElementSibling === before) return;
+  // Preserve the embedded browsing context in browsers supporting atomic moves.
+  if (typeof grid.moveBefore === 'function') grid.moveBefore(wrap, before);
+  else grid.insertBefore(wrap, before);
+}
+
+function focusVideo(wrap) {
+  focusedKey = wrap.dataset.key;
+  layoutMode.value = 'focus';
+  moveCard(wrap, grid.querySelector('.video-wrapper'));
+  applyLayout();
   saveSession();
 }
 
-function handleDragOver(e) {
-  if (e.preventDefault) e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  
-  const afterElement = getDragAfterElement(grid, e.clientY);
-  if (afterElement == null) {
-    grid.appendChild(draggedElement);
-  } else {
-    grid.insertBefore(draggedElement, afterElement);
+layoutMode.addEventListener('change', () => {
+  if (layoutMode.value === 'focus') {
+    const selected = [...grid.querySelectorAll('.video-wrapper')].find(card => card.dataset.key === focusedKey);
+    if (selected) moveCard(selected, grid.querySelector('.video-wrapper'));
   }
-  return false;
-}
+  applyLayout();
+  saveSession();
+});
+document.getElementById('gridFullscreen').addEventListener('click', () => toggleFullscreen(document.getElementById('viewer')));
+new ResizeObserver(applyLayout).observe(grid);
 
+function clearDropTargets() {
+  grid.querySelectorAll('.drop-before, .drop-after').forEach(card => card.classList.remove('drop-before', 'drop-after'));
+}
+function handleDragStart(e) {
+  if (layoutMode.value === 'focus') { e.preventDefault(); return; }
+  draggedElement = this;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', this.dataset.key);
+}
+function handleDragEnd() {
+  this.classList.remove('dragging');
+  clearDropTargets();
+  draggedElement = null;
+}
+function handleDragOver(e) {
+  if (!draggedElement || draggedElement === this) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  clearDropTargets();
+  const box = this.getBoundingClientRect();
+  this.classList.add(e.clientX < box.left + box.width / 2 ? 'drop-before' : 'drop-after');
+}
 function handleDrop(e) {
-  if (e.stopPropagation) e.stopPropagation();
-  return false;
-}
-
-function getDragAfterElement(container, y) {
-  const draggableElements = [...container.querySelectorAll('.video-wrapper:not(.dragging)')];
-  
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child };
-    } else {
-      return closest;
-    }
-  }, { offset: Number.NEGATIVE_INFINITY }).element;
+  if (!draggedElement || draggedElement === this) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const box = this.getBoundingClientRect();
+  const before = e.clientX < box.left + box.width / 2 ? this : this.nextElementSibling;
+  moveCard(draggedElement, before);
+  clearDropTargets();
+  applyLayout();
+  saveSession();
 }
 
 /* ─── Event Listeners ─── */
@@ -819,6 +890,8 @@ function getSetup() {
   return {
     version: 1,
     audioKey,
+    layout: layoutMode.value,
+    focusedKey,
     videos: [...grid.querySelectorAll('.video-wrapper')].map(wrap => ({
       key: wrap.dataset.key,
       id: wrap.dataset.videoId,
@@ -842,7 +915,10 @@ function validateSetup(value) {
   }
   const selected = value.audioKey ?? null;
   if (selected !== null && !keys.has(selected)) return null;
-  return { version: 1, audioKey: selected, videos };
+  const layout = value.layout ?? 'auto';
+  if (!['auto', 'two', 'focus'].includes(layout)) return null;
+  const focus = keys.has(value.focusedKey) ? value.focusedKey : videos[0]?.key ?? null;
+  return { version: 1, audioKey: selected, layout, focusedKey: focus, videos };
 }
 
 function writeStorage(key, value) {
@@ -868,6 +944,8 @@ function restoreSetup(setup) {
   [...players.keys()].forEach(destroyPlayer);
   audioKey = setup.audioKey ?? null;
   audioActive = false;
+  layoutMode.value = setup.layout ?? 'auto';
+  const restoreFocus = setup.focusedKey;
   grid.replaceChildren();
   setup.videos.forEach(createVideo);
   if (!setup.videos.length) {
@@ -876,6 +954,12 @@ function restoreSetup(setup) {
     empty.innerHTML = '<h2>🎬 No videos yet</h2><p>Add YouTube URLs above to start watching</p>';
     grid.appendChild(empty);
   }
+  focusedKey = restoreFocus ?? grid.querySelector('.video-wrapper')?.dataset.key ?? null;
+  if (layoutMode.value === 'focus') {
+    const selected = [...grid.querySelectorAll('.video-wrapper')].find(card => card.dataset.key === focusedKey);
+    if (selected) moveCard(selected, grid.querySelector('.video-wrapper'));
+  }
+  applyLayout();
   restoring = false;
 }
 

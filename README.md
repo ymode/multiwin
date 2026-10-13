@@ -26,6 +26,21 @@ YouTube link, and start watching. No download or installation required.
 4. Repeat to add more videos
 5. Click the '×' button on any video to remove it from the grid
 
+## Arrange the grid
+
+Choose **Auto**, **2 columns**, or **Focus one video**. The ◎ button focuses a
+card, placing it first with a larger viewing area and the other videos beside
+it. On phones, every layout becomes one column. Size preferences are remembered
+and clamped to the available space. **Fullscreen grid** keeps layout and shared
+playback controls available while hiding the page header.
+
+Drag a card to the left or right half of another card to insert it before or
+after that card; a green edge shows the destination. Focus mode keeps its main
+video first, so switch to Auto or 2 columns to reorder. Browsers supporting
+`Element.moveBefore` retain the embedded player while moving it; older browsers
+may reload the moved embed. Layout and focused video are saved with setups.
+Open **Saved setups & sharing** for preset and sharing controls.
+
 ## Playback controls
 
 Use **Listen to this** beneath a video to hear it while muting the others. The

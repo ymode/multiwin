@@ -34,7 +34,7 @@ async function interceptYouTube(route, requests) {
     await route.fulfill({ contentType: 'application/javascript', body: fakePlayerAPI });
   } else {
     if (requests) requests.push({ url: route.request().url(), headers: await route.request().allHeaders() });
-    await route.fulfill({ contentType: 'text/html', body: '<p>Intercepted test embed</p>' });
+    await route.fulfill({ contentType: 'text/html', body: '<style>body{margin:0;background:#17202b;color:#dbe7f7;font:18px sans-serif;display:grid;place-items:center;height:100vh}</style><p>Test video player</p>' });
   }
 }
 
@@ -136,7 +136,9 @@ for (const scheme of ['http', 'https']) {
       const transfer = await page.evaluateHandle(() => new DataTransfer());
       await first.dispatchEvent('dragstart', { dataTransfer: transfer });
       await page.locator('.video-wrapper').last().dispatchEvent('dragover',
-        { dataTransfer: transfer, clientY: 10000 });
+        { dataTransfer: transfer, clientX: 10000, clientY: 10000 });
+      await page.locator('.video-wrapper').last().dispatchEvent('drop',
+        { dataTransfer: transfer, clientX: 10000, clientY: 10000 });
       await page.locator('.video-wrapper').last().dispatchEvent('dragend', { dataTransfer: transfer });
       assert.equal(await page.locator('.video-wrapper').last().locator('iframe').getAttribute('src'), original);
       while (await page.locator('.video-wrapper').count()) {
@@ -217,6 +219,7 @@ test('refresh restores order and size; named presets load and delete', async () 
     const before = await page.evaluate(() => getSetup());
     await page.reload();
     assert.deepEqual(await page.evaluate(() => getSetup()), before);
+    await page.locator('#savedSetups summary').click();
     await page.locator('#presetName').fill('Race weekend');
     await page.locator('#savePreset').click();
     await addId(page, 'dQw4w9WgXcQ');
@@ -236,6 +239,7 @@ test('share link opens the same setup; clipboard denial offers a selectable link
     await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: () => Promise.reject(new Error('Denied')) }
     }));
+    await page.locator('#savedSetups summary').click();
     await page.locator('#shareSetup').click();
     assert.equal(await page.locator('#shareFallback').isVisible(), true);
     const link = await page.locator('#shareURL').inputValue();
@@ -332,5 +336,57 @@ test('loading a preset during a removal animation does not destroy its replaceme
       resolve({ count: players.size, frames: document.querySelectorAll('iframe').length });
     }, 400)));
     assert.deepEqual(result, { count: 1, frames: 1 });
+  } finally { await page.close(); }
+});
+
+test('horizontal drops reorder within a row and preserve the iframe in supporting browsers', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 } });
+  try {
+    for (const id of ['M7lc1UVf-VE', 'y0sF5xhGreA', 'dQw4w9WgXcQ']) await addId(page, id);
+    const first = page.locator('.video-wrapper').first();
+    const key = await first.getAttribute('data-key');
+    const second = page.locator('.video-wrapper').nth(1);
+    const box = await second.boundingBox();
+    const frame = page.frames().find(frame => frame.url().includes('/embed/M7lc1UVf-VE'));
+    await frame.evaluate(() => window.moveMarker = 'preserved');
+    const transfer = await page.evaluateHandle(() => new DataTransfer());
+    await first.dispatchEvent('dragstart', { dataTransfer: transfer });
+    await second.dispatchEvent('dragover', { dataTransfer: transfer, clientX: box.x + box.width - 5, clientY: box.y + 30 });
+    await second.dispatchEvent('drop', { dataTransfer: transfer, clientX: box.x + box.width - 5, clientY: box.y + 30 });
+    await page.locator(`[data-key="${key}"]`).dispatchEvent('dragend', { dataTransfer: transfer });
+    assert.deepEqual(await page.evaluate(() => getSetup().videos.map(v => v.id)), ['y0sF5xhGreA', 'M7lc1UVf-VE', 'dQw4w9WgXcQ']);
+    if (await page.evaluate(() => typeof grid.moveBefore === 'function')) {
+      assert.equal(await frame.evaluate(() => window.moveMarker), 'preserved');
+    }
+    await page.reload();
+    assert.equal(await page.locator('.video-wrapper').nth(1).getAttribute('data-key'), key);
+  } finally { await page.close(); }
+});
+
+test('layout and focus restore; mobile sizing stays inside the viewport; whole grid can fullscreen', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 } });
+  try {
+    for (const id of ['M7lc1UVf-VE', 'y0sF5xhGreA', 'dQw4w9WgXcQ']) await addId(page, id);
+    await page.locator('#layoutMode').selectOption('two');
+    assert.equal(await page.locator('#grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 2);
+    const third = page.locator('.video-wrapper').nth(2);
+    await third.hover();
+    await third.locator('.focus-video').click();
+    assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'dQw4w9WgXcQ');
+    await page.reload();
+    assert.equal(await page.locator('#layoutMode').inputValue(), 'focus');
+    if (process.env.REVIEW_SCREENSHOTS) await page.screenshot({ path: '/tmp/multiwin-desktop.png', fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => adjustSize(grid.querySelector('.video-wrapper'), 2));
+    await page.waitForFunction(() => getComputedStyle(grid).gridTemplateColumns.split(' ').length === 1);
+    const bounds = await page.locator('.video-wrapper').first().boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    assert.equal(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth), true);
+    if (process.env.REVIEW_SCREENSHOTS) await page.screenshot({ path: '/tmp/multiwin-mobile.png', fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('#gridFullscreen').click();
+    await page.waitForFunction(() => document.fullscreenElement?.id === 'viewer');
+    assert.equal(await page.locator('#pauseAll').isVisible(), true);
+    await page.evaluate(() => document.exitFullscreen());
   } finally { await page.close(); }
 });
