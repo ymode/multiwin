@@ -180,12 +180,12 @@ h1 {
 
 /* ─────────  Grid Layout  ───────── */
 #grid {
-  padding: 1rem;
-  max-width: 1800px;
+  padding: 4px;
   margin: 0 auto;
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr));
-  gap: 1rem;
+  gap: 4px;
 }
 
 
@@ -195,8 +195,8 @@ h1 {
   grid-column: span var(--span, 1);
   min-width: 0;
   position: relative;
-  background: var(--bg-card);
-  border-radius: var(--radius);
+  background: #000;
+  border-radius: 0;
   overflow: hidden;
   transition: var(--transition);
   border: 1px solid var(--border-color);
@@ -204,8 +204,7 @@ h1 {
 
 
 .video-wrapper:hover {
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary);
+  border-color: #777;
 }
 
 .video-wrapper.dragging {
@@ -214,20 +213,38 @@ h1 {
 }
 
 .video-wrapper iframe {
+  display: block;
   width: 100%;
   height: 100%;
   border: 0;
 }
 
 /* ─────────  Video Controls  ───────── */
+.card-tools {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: #181818;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Keep the handle available from pointer-down through the native drop. */
+.video-wrapper.dragging .card-tools,
+.card-tools:has(:focus-visible, .drag-handle:active),
+#viewer.show-video-controls .card-tools { opacity: 1; pointer-events: auto; }
+@media (hover: hover) and (pointer: fine) {
+  .video-wrapper:hover .card-tools { opacity: 1; pointer-events: auto; }
+}
+.card-tools :focus-visible { outline-offset: -3px; }
 .controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
-  padding: 8px;
-  background: var(--bg-card);
+  padding: 4px;
 }
 
 .ctrl {
@@ -284,9 +301,6 @@ h1 {
   .subtitle { font-size: 1rem; }
   .input-container { flex-direction: column; }
   #addBtn { width: 100%; }
-  #grid { 
-    padding: 1rem;
-  }
 }
 
 /* ─────────  Loading Animation  ───────── */
@@ -309,7 +323,7 @@ h1 {
 @keyframes shimmer {
   to { left: 100%; }
 }
-.player-frame { aspect-ratio: 16/9; min-height: 200px; }
+.player-frame { position: relative; aspect-ratio: 16/9; min-height: 200px; }
 .player-status { padding: .65rem; font-size: .9rem; line-height: 1.5; }
 .player-status:empty { display: none; }
 .player-status a { color: var(--text-primary); margin-left: .5rem; }
@@ -335,7 +349,7 @@ h1 {
 #inputFeedback:empty { display: none; }
 #inputFeedback { color: #ffb4ab; }
 #urlInput[aria-invalid="true"] { box-shadow: inset 0 0 0 2px #ffb4ab; }
-.card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem; }
+.card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: 0 4px 4px; }
 .reorder-controls { display: flex; gap: 4px; }
 .drag-handle { margin-right: auto; cursor: grab; }
 #grid.is-dragging iframe { pointer-events: none; }
@@ -434,6 +448,7 @@ h1 {
       <option value="two">2 columns</option>
       <option value="focus">Focus one video</option>
     </select>
+    <button id="showVideoControls" class="tool-btn" aria-pressed="false" aria-controls="grid">Show video controls</button>
     <button id="gridFullscreen" class="tool-btn">Fullscreen grid</button>
   </div>
 </div>
@@ -458,6 +473,12 @@ let audioActive = false;
 let allPaused = false;
 let apiPromise;
 const layoutMode = document.getElementById('layoutMode');
+const showVideoControls = document.getElementById('showVideoControls');
+showVideoControls.addEventListener('click', () => {
+  const shown = document.getElementById('viewer').classList.toggle('show-video-controls');
+  showVideoControls.setAttribute('aria-pressed', String(shown));
+  showVideoControls.textContent = shown ? 'Hide video controls' : 'Show video controls';
+});
 let focusedKey = null;
 
 // Local files have no HTTP origin for the browser to identify to YouTube.
@@ -583,7 +604,7 @@ function createVideo({ id, key, size = 1, start = 0 }) {
 
   const buttons = [
     { icon: '⠿', label: 'Drag to reorder video', className: 'ctrl drag-handle', action: () => {
-      setSetupStatus('Drag this handle, or use Move earlier and Move later below the video.');
+      setSetupStatus('Drag this handle, or use Move earlier and Move later in the video controls.');
     } },
     { icon: '◎', label: 'Focus video', className: 'ctrl focus-video', action: () => focusVideo(wrap) },
     { icon: '−', label: 'Make video smaller', className: 'ctrl size-down', action: () => adjustSize(wrap, -1) },
@@ -615,7 +636,6 @@ function createVideo({ id, key, size = 1, start = 0 }) {
   
   const frame = document.createElement('div');
   frame.className = 'player-frame';
-  frame.appendChild(iframe);
   const listen = document.createElement('button');
   listen.className = 'tool-btn audio-btn';
   listen.textContent = 'Listen to this';
@@ -643,7 +663,13 @@ function createVideo({ id, key, size = 1, start = 0 }) {
     reorder.appendChild(button);
   }
   footer.append(listen, reorder);
-  wrap.append(controls, frame, footer, status);
+  const tools = document.createElement('div');
+  tools.className = 'card-tools';
+  tools.setAttribute('role', 'group');
+  tools.setAttribute('aria-label', 'Video controls');
+  tools.append(controls, footer);
+  frame.append(tools, iframe);
+  wrap.append(frame, status);
   grid.appendChild(wrap);
   connectPlayer(wrap, iframe);
   applyLayout();
@@ -706,7 +732,10 @@ function applyLayout() {
   const available = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
   const gap = parseFloat(style.columnGap) || 16;
   const fits = window.innerWidth <= 768 ? 1 : Math.max(1, Math.floor((available + gap) / (320 + gap)));
-  const columns = Math.max(1, Math.min(layoutMode.value === 'auto' ? fits : 2, fits, cards.length || 1));
+  const count = cards.length || 1;
+  // Balance rows instead of leaving one stream alone (e.g. six feeds become 3 × 2).
+  const autoColumns = Math.ceil(count / Math.ceil(count / fits));
+  const columns = Math.max(1, Math.min(layoutMode.value === 'auto' ? autoColumns : 2, fits, count));
   grid.style.setProperty('--columns', columns);
   const focus = layoutMode.value === 'focus' && columns > 1;
   grid.classList.toggle('focus-layout', focus);
