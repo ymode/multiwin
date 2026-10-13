@@ -26,6 +26,52 @@ YouTube link, and start watching. No download or installation required.
 4. Repeat to add more videos
 5. Click the '×' button on any video to remove it from the grid
 
+## Arrange the grid
+
+Choose **Auto**, **2 columns**, or **Focus one video**. The ◎ button focuses a
+card, placing it first with a larger viewing area and the other videos beside
+it. On phones, every layout becomes one column. Size preferences are remembered
+and clamped to the available space. **Fullscreen grid** keeps layout and shared
+playback controls available while hiding the page header.
+
+Drag a card to the left or right half of another card to insert it before or
+after that card; a green edge shows the destination. Focus mode keeps its main
+video first, so switch to Auto or 2 columns to reorder. Browsers supporting
+`Element.moveBefore` retain the embedded player while moving it; older browsers
+may reload the moved embed. Layout and focused video are saved with setups.
+Open **Saved setups & sharing** for preset and sharing controls.
+
+## Playback controls
+
+Use **Listen to this** beneath a video to hear it while muting the others. The
+selected card is highlighted; click **Listening · mute** or **Mute all** to
+silence it. **Pause all** and **Play all** control the whole grid. New players
+respect Pause all even if they finish loading later.
+
+Audio selection is remembered with a setup, but restored and shared grids start
+muted. Choose **Resume audio** to enable sound. YouTube or the browser can block
+autoplay; use the individual player's Play button when prompted. Unavailable,
+private and non-embeddable videos show a recovery message with a YouTube link.
+If the shared control API cannot load, the native embedded controls remain usable.
+
+## Saved setups and sharing
+
+The grid is saved automatically in this browser, including video order and sizes.
+Refreshing restores it. Use **Save preset** to keep a named setup, then select it
+and choose **Load** to replace the current grid. Saving an existing name updates
+that preset; **Delete preset** removes the saved copy without changing the grid.
+Up to 100 videos per setup and 50 named presets are supported.
+
+**Copy setup link** shares the video list, order, sizes and start offsets in the
+URL fragment. No account or Multiwin backend is involved. Anyone with the link
+can read and open that setup. Opening a shared link replaces the current grid;
+later edits are saved locally and do not change the shared snapshot. A local
+`127.0.0.1` link works only on a computer running its own copy; use the hosted app
+for links you send to other people. Presets and sessions belong to the current
+browser and site address. Clearing browser data removes them. If storage or
+clipboard access is blocked, watching still works and a selectable share link is
+shown when needed.
+
 ## Supported URL Formats
 
 The player supports various YouTube URL formats, including:

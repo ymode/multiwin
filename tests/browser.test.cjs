@@ -7,6 +7,37 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
+// Models the documented API so controls and failures are deterministic offline.
+// Live diagnostics below still use the actual YouTube player.
+const fakePlayerAPI = `
+window.__players = {};
+window.YT = { Player: class {
+  constructor(iframe, options) {
+    this.iframe = iframe;
+    this.events = options.events;
+    this.muted = true;
+    this.paused = false;
+    window.__players[iframe.id] = this;
+    setTimeout(() => this.events.onReady({ target: this }), 0);
+  }
+  mute() { this.muted = true; }
+  unMute() { this.muted = false; }
+  playVideo() { this.paused = false; this.events.onStateChange?.({ data: 1 }); }
+  pauseVideo() { this.paused = true; }
+  destroy() { this.destroyed = true; this.iframe.remove(); }
+} };
+window.onYouTubeIframeAPIReady?.();
+`;
+
+async function interceptYouTube(route, requests) {
+  if (route.request().url().includes('/iframe_api')) {
+    await route.fulfill({ contentType: 'application/javascript', body: fakePlayerAPI });
+  } else {
+    if (requests) requests.push({ url: route.request().url(), headers: await route.request().allHeaders() });
+    await route.fulfill({ contentType: 'text/html', body: '<style>body{margin:0;background:#17202b;color:#dbe7f7;font:18px sans-serif;display:grid;place-items:center;height:100vh}</style><p>Test video player</p>' });
+  }
+}
+
 const root = path.resolve(__dirname, '..');
 let browser, server, localURL;
 
@@ -56,10 +87,7 @@ for (const scheme of ['http', 'https']) {
     page.on('pageerror', error => errors.push(error.message));
     try {
       const requests = [];
-      await page.route('https://www.youtube.com/**', async route => {
-        requests.push({ url: route.request().url(), headers: await route.request().allHeaders() });
-        await route.fulfill({ contentType: 'text/html', body: '<p>Intercepted test embed</p>' });
-      });
+      await page.route('https://www.youtube.com/**', route => interceptYouTube(route, requests));
       let url = localURL;
       if (scheme === 'https') {
         url = 'https://multiwin.test/nested/index.html?private=value';
@@ -108,7 +136,9 @@ for (const scheme of ['http', 'https']) {
       const transfer = await page.evaluateHandle(() => new DataTransfer());
       await first.dispatchEvent('dragstart', { dataTransfer: transfer });
       await page.locator('.video-wrapper').last().dispatchEvent('dragover',
-        { dataTransfer: transfer, clientY: 10000 });
+        { dataTransfer: transfer, clientX: 10000, clientY: 10000 });
+      await page.locator('.video-wrapper').last().dispatchEvent('drop',
+        { dataTransfer: transfer, clientX: 10000, clientY: 10000 });
       await page.locator('.video-wrapper').last().dispatchEvent('dragend', { dataTransfer: transfer });
       assert.equal(await page.locator('.video-wrapper').last().locator('iframe').getAttribute('src'), original);
       while (await page.locator('.video-wrapper').count()) {
@@ -162,3 +192,201 @@ for (const videoId of ['y0sF5xhGreA', 'M7lc1UVf-VE']) {
     } finally { await page.close(); }
   });
 }
+
+async function openApp(options = {}) {
+  const page = await browser.newPage(options);
+  await page.route('https://www.youtube.com/**', route => interceptYouTube(route));
+  await page.goto(localURL);
+  return page;
+}
+
+async function addId(page, id) {
+  await page.locator('#urlInput').fill(id);
+  await page.locator('#addBtn').click();
+}
+
+test('refresh restores order and size; named presets load and delete', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 } });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await addId(page, 'y0sF5xhGreA');
+    await page.evaluate(() => {
+      const first = grid.querySelector('.video-wrapper');
+      adjustSize(first, 1);
+      grid.appendChild(first);
+      saveSession();
+    });
+    const before = await page.evaluate(() => getSetup());
+    await page.reload();
+    assert.deepEqual(await page.evaluate(() => getSetup()), before);
+    await page.locator('#savedSetups summary').click();
+    await page.locator('#presetName').fill('Race weekend');
+    await page.locator('#savePreset').click();
+    await addId(page, 'dQw4w9WgXcQ');
+    await page.locator('#loadPreset').click();
+    assert.deepEqual(await page.evaluate(() => getSetup()), before);
+    await page.locator('#deletePreset').click();
+    assert.equal(await page.locator('#presetSelect option').count(), 1);
+    assert.equal(await page.locator('.video-wrapper').count(), 2);
+  } finally { await page.close(); }
+});
+
+test('share link opens the same setup; clipboard denial offers a selectable link', async () => {
+  const page = await openApp();
+  const other = await openApp();
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('Denied')) }
+    }));
+    await page.locator('#savedSetups summary').click();
+    await page.locator('#shareSetup').click();
+    assert.equal(await page.locator('#shareFallback').isVisible(), true);
+    const link = await page.locator('#shareURL').inputValue();
+    await other.goto(link);
+    await other.waitForFunction(() => document.querySelectorAll('.video-wrapper').length === 1);
+    assert.deepEqual(await other.evaluate(() => getSetup()), await page.evaluate(() => getSetup()));
+    assert.equal(new URL(other.url()).hash, '');
+    await other.reload();
+    assert.equal(await other.locator('.video-wrapper').count(), 1);
+  } finally { await page.close(); await other.close(); }
+});
+
+test('corrupt data, malformed sharing and unavailable storage do not break adding', async () => {
+  const page = await openApp();
+  try {
+    await page.evaluate(() => localStorage.setItem('multiwin.session.v1', '{bad'));
+    await page.goto(localURL + '#setup=%invalid');
+    await page.reload();
+    assert.match(await page.locator('#setupStatus').innerText(), /invalid/);
+    await page.evaluate(() => Object.defineProperty(window, 'localStorage', {
+      get() { throw new Error('Storage blocked'); }
+    }));
+    await addId(page, 'M7lc1UVf-VE');
+    assert.equal(await page.locator('.video-wrapper').count(), 1);
+    assert.match(await page.locator('#setupStatus').innerText(), /storage is unavailable/);
+  } finally { await page.close(); }
+});
+
+test('Listen selects one player; global pause, play and mute affect every player', async () => {
+  const page = await openApp();
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await addId(page, 'y0sF5xhGreA');
+    const audio = page.locator('.audio-btn');
+    await audio.first().click();
+    assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [false, true]);
+    await audio.last().click();
+    assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [true, false]);
+    await page.locator('#pauseAll').click();
+    assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.paused)), [true, true]);
+    await addId(page, 'dQw4w9WgXcQ');
+    await page.waitForFunction(() => [...players.values()].every(r => r.ready));
+    assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.paused)), [true, true, true]);
+    await page.locator('#playAll').click();
+    assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.paused)), [false, false, false]);
+    await page.locator('#muteAll').click();
+    assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [true, true, true]);
+    assert.equal(await page.locator('.audio-selected').count(), 0);
+  } finally { await page.close(); }
+});
+
+test('audio choice restores muted and API failures offer recovery', async () => {
+  const page = await openApp();
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await page.locator('.audio-btn').click();
+    await page.reload();
+    await page.waitForFunction(() => [...players.values()].every(r => r.ready));
+    assert.equal(await page.locator('.audio-btn').innerText(), 'Resume audio');
+    assert.equal(await page.evaluate(() => [...players.values()][0].player.muted), true);
+    await page.evaluate(() => [...players.values()][0].player.events.onAutoplayBlocked());
+    assert.match(await page.locator('.player-status').innerText(), /Play button/);
+    await page.evaluate(() => [...players.values()][0].player.events.onError({ data: 153 }));
+    assert.match(await page.locator('.player-status').innerText(), /identify this site/);
+    assert.match(await page.locator('.player-status a').getAttribute('href'), /youtube.com\/watch/);
+    await page.locator('.video-wrapper').hover();
+    await page.locator('.ctrl.close').click();
+    await page.waitForFunction(() => players.size === 0);
+    assert.equal(await page.evaluate(() => Object.values(window.__players)[0].destroyed), true);
+  } finally { await page.close(); }
+});
+
+test('blocked player API leaves embeds usable and shows a fallback', async () => {
+  const page = await openApp();
+  try {
+    await page.route('https://www.youtube.com/iframe_api', route => route.abort());
+    await addId(page, 'M7lc1UVf-VE');
+    await page.waitForFunction(() => document.querySelector('.player-status').textContent.includes('could not load'));
+    assert.equal(await page.locator('iframe').count(), 1);
+    assert.equal(await page.locator('.audio-btn').isDisabled(), true);
+  } finally { await page.close(); }
+});
+
+test('loading a preset during a removal animation does not destroy its replacement player', async () => {
+  const page = await openApp();
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await page.evaluate(() => {
+      const setup = getSetup();
+      removeVideo(grid.querySelector('.video-wrapper'));
+      restoreSetup(setup);
+    });
+    const result = await page.evaluate(() => new Promise(resolve => setTimeout(() => {
+      resolve({ count: players.size, frames: document.querySelectorAll('iframe').length });
+    }, 400)));
+    assert.deepEqual(result, { count: 1, frames: 1 });
+  } finally { await page.close(); }
+});
+
+test('horizontal drops reorder within a row and preserve the iframe in supporting browsers', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 } });
+  try {
+    for (const id of ['M7lc1UVf-VE', 'y0sF5xhGreA', 'dQw4w9WgXcQ']) await addId(page, id);
+    const first = page.locator('.video-wrapper').first();
+    const key = await first.getAttribute('data-key');
+    const second = page.locator('.video-wrapper').nth(1);
+    const box = await second.boundingBox();
+    const frame = page.frames().find(frame => frame.url().includes('/embed/M7lc1UVf-VE'));
+    await frame.evaluate(() => window.moveMarker = 'preserved');
+    const transfer = await page.evaluateHandle(() => new DataTransfer());
+    await first.dispatchEvent('dragstart', { dataTransfer: transfer });
+    await second.dispatchEvent('dragover', { dataTransfer: transfer, clientX: box.x + box.width - 5, clientY: box.y + 30 });
+    await second.dispatchEvent('drop', { dataTransfer: transfer, clientX: box.x + box.width - 5, clientY: box.y + 30 });
+    await page.locator(`[data-key="${key}"]`).dispatchEvent('dragend', { dataTransfer: transfer });
+    assert.deepEqual(await page.evaluate(() => getSetup().videos.map(v => v.id)), ['y0sF5xhGreA', 'M7lc1UVf-VE', 'dQw4w9WgXcQ']);
+    if (await page.evaluate(() => typeof grid.moveBefore === 'function')) {
+      assert.equal(await frame.evaluate(() => window.moveMarker), 'preserved');
+    }
+    await page.reload();
+    assert.equal(await page.locator('.video-wrapper').nth(1).getAttribute('data-key'), key);
+  } finally { await page.close(); }
+});
+
+test('layout and focus restore; mobile sizing stays inside the viewport; whole grid can fullscreen', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 1000 } });
+  try {
+    for (const id of ['M7lc1UVf-VE', 'y0sF5xhGreA', 'dQw4w9WgXcQ']) await addId(page, id);
+    await page.locator('#layoutMode').selectOption('two');
+    assert.equal(await page.locator('#grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 2);
+    const third = page.locator('.video-wrapper').nth(2);
+    await third.hover();
+    await third.locator('.focus-video').click();
+    assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'dQw4w9WgXcQ');
+    await page.reload();
+    assert.equal(await page.locator('#layoutMode').inputValue(), 'focus');
+    if (process.env.REVIEW_SCREENSHOTS) await page.screenshot({ path: '/tmp/multiwin-desktop.png', fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => adjustSize(grid.querySelector('.video-wrapper'), 2));
+    await page.waitForFunction(() => getComputedStyle(grid).gridTemplateColumns.split(' ').length === 1);
+    const bounds = await page.locator('.video-wrapper').first().boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    assert.equal(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth), true);
+    if (process.env.REVIEW_SCREENSHOTS) await page.screenshot({ path: '/tmp/multiwin-mobile.png', fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('#gridFullscreen').click();
+    await page.waitForFunction(() => document.fullscreenElement?.id === 'viewer');
+    assert.equal(await page.locator('#pauseAll').isVisible(), true);
+    await page.evaluate(() => document.exitFullscreen());
+  } finally { await page.close(); }
+});
