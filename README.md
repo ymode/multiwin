@@ -2,6 +2,9 @@
 
 A simple, responsive web application that allows users to watch multiple YouTube videos simultaneously in a grid layout.
 
+**[Launch Multiwin →](https://ymode.github.io/multiwin/)** — open the app, paste a
+YouTube link, and start watching. No download or installation required.
+
 ![Screenshot 2024-11-06 180450](https://github.com/user-attachments/assets/513b0103-22e5-42b8-a7e2-2852c157181c)
 
 
@@ -46,6 +49,9 @@ Works in all modern browsers that support:
 
 ## Installation
 
+For normal use, [open the hosted app](https://ymode.github.io/multiwin/). The
+instructions below are for running your own copy.
+
 Serve the application over HTTP or HTTPS. **Do not double-click `index.html` or
 open it with a `file://` URL.** YouTube requires a browser-provided HTTP `Referer`
 or equivalent client identification; local-file launches cannot provide a normal
@@ -80,6 +86,14 @@ python3 -m http.server 8000 --bind 127.0.0.1
 This alternative serves the entire current directory, so use a dedicated folder.
 
 ### Static hosting (no Python required)
+
+This repository deploys to GitHub Pages after changes to the app are merged into
+`main`. The **Publish Multiwin** workflow uploads only `index.html`; source,
+tests, and local tools are not included in the website. To set this up in a fork,
+choose **Settings → Pages → Build and deployment → Source: GitHub Actions**,
+then run **Publish Multiwin** from the Actions tab on `main`. Update the launch
+links in this README to the Pages URL for your fork. Feature branches and pull
+requests do not deploy to the public site.
 
 Upload `index.html` to any static HTTPS host and open its hosted URL. No backend,
 API key, package installation or build is needed. For GitHub Pages, publish the
