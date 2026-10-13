@@ -37,6 +37,32 @@ body {
   overflow-x: hidden;
 }
 
+/* ─────────  Floating controls  ───────── */
+#togglePanel {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  z-index: 30;
+  background: rgba(26, 26, 26, .92);
+  box-shadow: var(--shadow-sm);
+}
+#controlPanel {
+  position: fixed;
+  bottom: 60px;
+  right: 8px;
+  z-index: 25;
+  width: min(900px, calc(100% - 16px));
+  max-height: calc(100vh - 76px);
+  max-height: calc(100dvh - 76px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding-bottom: 1rem;
+}
+#viewer.panel-open .empty-state { visibility: hidden; }
 /* ─────────  Header  ───────── */
 header {
   background: linear-gradient(to bottom, var(--bg-secondary), transparent);
@@ -386,14 +412,35 @@ h1 {
 }
 .tool-btn { cursor: pointer; }
 .tool-btn:disabled { opacity: .5; cursor: not-allowed; }
-#setupStatus { text-align: center; padding: 0 1rem; min-height: 1.5em; margin: .75rem auto 0; color: var(--text-secondary); }
+#setupStatus {
+  position: fixed;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  width: max-content;
+  max-width: min(700px, calc(100% - 24px));
+  padding: .65rem 1rem;
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+#setupStatus.status-visible { opacity: 1; }
 #shareFallback { max-width: 800px; margin: .75rem auto; }
 #shareURL { width: 100%; padding: .75rem; }
 </style>
 </head>
 
 <body>
-<a class="skip-link" href="#viewer">Skip to video controls</a>
+<a class="skip-link" href="#grid">Skip to videos</a>
+<section id="viewer" class="panel-open" aria-label="Video viewer" tabindex="-1">
+<button id="togglePanel" class="tool-btn" aria-expanded="true" aria-controls="controlPanel">✕ Hide controls</button>
+<aside id="controlPanel" aria-label="Multiwin controls">
 <header>
   <div class="header-content">
     <h1>Multiwin</h1>
@@ -434,7 +481,6 @@ h1 {
   </div>
 </header>
 
-<section id="viewer" aria-label="Video viewer" tabindex="-1">
 <div class="viewer-toolbar">
     <div class="playback-toolbar" role="group" aria-label="Playback">
       <button id="playAll" class="tool-btn">Play all</button>
@@ -452,11 +498,12 @@ h1 {
     <button id="gridFullscreen" class="tool-btn">Fullscreen grid</button>
   </div>
 </div>
+</aside>
 <p id="setupStatus" role="status" aria-live="polite"></p>
-<main id="grid" aria-label="Video grid">
+<main id="grid" aria-label="Video grid" tabindex="-1">
   <div class="empty-state">
     <h2>🎬 No videos yet</h2>
-    <p>Add YouTube URLs above to start watching</p>
+    <p>Open Controls to add YouTube links and start watching</p>
   </div>
 </main>
 </section>
@@ -466,6 +513,28 @@ h1 {
 const urlInput = document.getElementById('urlInput');
 const addBtn = document.getElementById('addBtn');
 const grid = document.getElementById('grid');
+const viewer = document.getElementById('viewer');
+const controlPanel = document.getElementById('controlPanel');
+const togglePanel = document.getElementById('togglePanel');
+
+function setPanelOpen(open, focusInput = false) {
+  const focusWasInside = controlPanel.contains(document.activeElement);
+  controlPanel.hidden = !open;
+  viewer.classList.toggle('panel-open', open);
+  togglePanel.setAttribute('aria-expanded', String(open));
+  togglePanel.textContent = open ? '✕ Hide controls' : '☰ Controls';
+  if (open) controlPanel.scrollTop = 0;
+  if (open && focusInput && !urlInput.disabled) urlInput.focus({ preventScroll: true });
+  else if (!open && focusWasInside) togglePanel.focus({ preventScroll: true });
+}
+// Keyboard activation goes straight to the input; touch does not summon a keyboard.
+togglePanel.addEventListener('click', event => setPanelOpen(controlPanel.hidden, event.detail === 0));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !controlPanel.hidden && !event.defaultPrevented) {
+    event.preventDefault();
+    setPanelOpen(false);
+  }
+});
 let draggedElement = null;
 const players = new Map();
 let audioKey = null;
@@ -573,7 +642,8 @@ function addVideo() {
   urlInput.value = rejected.join('\n');
   urlInput.setAttribute('aria-invalid', String(rejected.length > 0));
   feedback.textContent = rejected.length ? rejected.length + ' link(s) need attention. ' + errors.join(' ') : '';
-  urlInput.focus();
+  if (added && !rejected.length) setPanelOpen(false);
+  else { setPanelOpen(true); urlInput.focus(); }
 }
 
 function makeVideoKey() {
@@ -712,12 +782,13 @@ function removeVideo(wrap) {
     wrap.remove();
     applyLayout();
     saveSession();
-    if (restoreFocus) (neighbor?.querySelector('.ctrl:not(:disabled)') || urlInput).focus();
+    if (restoreFocus && neighbor) neighbor.querySelector('.ctrl:not(:disabled)')?.focus();
     if (grid.children.length === 0) {
+      setPanelOpen(true, true);
       grid.innerHTML = `
         <div class="empty-state">
           <h2>🎬 No videos yet</h2>
-          <p>Add YouTube URLs above to start watching</p>
+          <p>Open Controls to add YouTube links and start watching</p>
         </div>
       `;
     }
@@ -791,7 +862,13 @@ layoutMode.addEventListener('change', () => {
   applyLayout();
   saveSession();
 });
-document.getElementById('gridFullscreen').addEventListener('click', () => toggleFullscreen(document.getElementById('viewer')));
+document.getElementById('gridFullscreen').addEventListener('click', () => {
+  toggleFullscreen(viewer);
+  setPanelOpen(false);
+});
+document.addEventListener('fullscreenchange', () => {
+  document.getElementById('gridFullscreen').textContent = document.fullscreenElement === viewer ? 'Exit fullscreen' : 'Fullscreen grid';
+});
 new ResizeObserver(applyLayout).observe(grid);
 
 function clearDropTargets() {
@@ -980,8 +1057,13 @@ const presetSelect = document.getElementById('presetSelect');
 let restoring = false;
 let presets = [];
 
+let statusTimer;
 function setSetupStatus(message) {
-  document.getElementById('setupStatus').textContent = message;
+  const status = document.getElementById('setupStatus');
+  status.textContent = message;
+  status.classList.add('status-visible');
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => status.classList.remove('status-visible'), 6000);
 }
 
 function getSetup() {
@@ -1049,7 +1131,7 @@ function restoreSetup(setup) {
   if (!setup.videos.length) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.innerHTML = '<h2>🎬 No videos yet</h2><p>Add YouTube URLs above to start watching</p>';
+    empty.innerHTML = '<h2>🎬 No videos yet</h2><p>Open Controls to add YouTube links and start watching</p>';
     grid.appendChild(empty);
   }
   focusedKey = restoreFocus ?? grid.querySelector('.video-wrapper')?.dataset.key ?? null;
@@ -1167,8 +1249,8 @@ window.addEventListener('hashchange', () => {
   if (location.hash.startsWith('#setup=')) initializeSetups();
 });
 initializeSetups();
-/* ─── Focus input on load ─── */
-urlInput.focus();
+// A restored wall opens directly into viewing; new users see the link input.
+setPanelOpen(!grid.querySelector('.video-wrapper'), true);
 </script>
 </body>
 </html>

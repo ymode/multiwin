@@ -5,7 +5,7 @@ A simple, responsive web application that allows users to watch multiple YouTube
 **[Launch Multiwin →](https://ymode.github.io/multiwin/)** — open the app, paste a
 YouTube link, and start watching. No download or installation required.
 
-![Multiwin showing six live news channels in a compact three-column, two-row grid](docs/images/multiwin.jpg)
+![Multiwin showing six live news channels with the controls tucked away and a floating Controls button](docs/images/multiwin.jpg)
 
 Live news wall featuring [Sky News](https://www.youtube.com/@SkyNews),
 [DW News](https://www.youtube.com/@dwnews),
@@ -30,8 +30,21 @@ Live news wall featuring [Sky News](https://www.youtube.com/@SkyNews),
 1. Launch the application using the [installation instructions](#installation) below
 2. Paste one or more YouTube URLs into the input field (separate them with spaces or new lines)
 3. Click "Add videos" or press Enter to add them to the grid; Shift+Enter inserts a new line
-4. Repeat to add more videos
+4. The panel tucks away after valid links are added. Open **Controls** to add more
 5. Click the '×' button on any video to remove it from the grid
+
+## Watch with the controls tucked away
+
+The video grid starts at the top of the window. The floating **Controls** button
+opens a panel for links, playback, layouts and saved setups without moving or
+reloading the videos. Use **Hide controls** or Escape to put it away; unfinished
+links stay in the input. The panel opens automatically for an empty grid, stays
+open when links need correcting, and closes after a successful addition.
+Restored grids open straight into watching.
+
+The same button works with a mouse, keyboard or touchscreen, including in
+**Fullscreen grid**. The panel scrolls on smaller screens. Status messages appear
+briefly over the grid instead of reserving a row above it.
 
 ## Arrange the grid
 
@@ -40,7 +53,7 @@ avoid isolated streams; six videos form a 3 × 2 wall when space allows. The ◎
 card, placing it first with a larger viewing area and the other videos beside
 it. On phones, every layout becomes one column. Size preferences are remembered
 and clamped to the available space. **Fullscreen grid** keeps layout and shared
-playback controls available while hiding the page header.
+playback controls available through the floating panel.
 
 Drag a card’s ⠿ handle to the left or right half of another card to insert it before or
 after that card; a green edge shows the destination. Focus mode keeps its main
@@ -61,7 +74,7 @@ Buttons retain 44px touch targets, descriptive labels and visible focus rings.
 Tab reaches every available control. **Move earlier** and **Move later** provide
 a keyboard and touch alternative to dragging; they announce the new position.
 Removal moves keyboard focus to a neighboring card or the input when the grid becomes empty.
-Use **Skip to video controls** to bypass the header.
+Use **Skip to videos** to bypass the control panel.
 
 Reduced-motion preferences disable animations and transitions. Continuous title
 and empty-state animations have been removed. The YouTube iframe has a title,
