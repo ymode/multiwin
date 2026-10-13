@@ -105,10 +105,12 @@ for (const scheme of ['http', 'https']) {
         'https://www.youtube.com/shorts/M7lc1UVf-VE',
         'M7lc1UVf-VE'
       ];
+      await openControls(page);
       await page.locator('#urlInput').fill('invalid');
       await page.locator('#addBtn').click();
       assert.equal(await page.locator('iframe').count(), 0);
       for (const [index, video] of videos.entries()) {
+        await openControls(page);
         await page.locator('#urlInput').fill(video);
         const loaded = page.waitForResponse(response => response.url().startsWith('https://www.youtube.com/embed/'));
         if (index % 2) await page.locator('#urlInput').press('Enter');
@@ -149,7 +151,8 @@ for (const scheme of ['http', 'https']) {
         await page.locator('.ctrl.close').first().click();
         await page.waitForFunction(n => document.querySelectorAll('.video-wrapper').length === n - 1, count);
       }
-      assert.equal(await page.locator('.empty-state').isVisible(), true);
+      assert.equal(await page.locator('.empty-state').count(), 1);
+      assert.equal(await page.locator('#urlInput').isVisible(), true);
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   });
@@ -166,6 +169,7 @@ for (const videoId of ['y0sF5xhGreA', 'M7lc1UVf-VE']) {
     });
     try {
       await page.goto(localURL);
+      await openControls(page);
       await page.locator('#urlInput').fill(videoId);
       await page.locator('#addBtn').click();
       const video = page.frameLocator('iframe').locator('video').first();
@@ -202,7 +206,16 @@ async function openApp(options = {}) {
   return page;
 }
 
+async function openControls(page) {
+  if (!(await page.locator('#controlPanel').isVisible())) await page.locator('#togglePanel').click();
+}
+
+async function closeControls(page) {
+  if (await page.locator('#controlPanel').isVisible()) await page.locator('#togglePanel').click();
+}
+
 async function addId(page, id) {
+  await openControls(page);
   await page.locator('#urlInput').fill(id);
   await page.locator('#addBtn').click();
 }
@@ -221,10 +234,12 @@ test('refresh restores order and size; named presets load and delete', async () 
     const before = await page.evaluate(() => getSetup());
     await page.reload();
     assert.deepEqual(await page.evaluate(() => getSetup()), before);
+    await openControls(page);
     await page.locator('#savedSetups summary').click();
     await page.locator('#presetName').fill('Race weekend');
     await page.locator('#savePreset').click();
     await addId(page, 'dQw4w9WgXcQ');
+    await openControls(page);
     await page.locator('#loadPreset').click();
     assert.deepEqual(await page.evaluate(() => getSetup()), before);
     await page.locator('#deletePreset').click();
@@ -241,6 +256,7 @@ test('share link opens the same setup; clipboard denial offers a selectable link
     await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: () => Promise.reject(new Error('Denied')) }
     }));
+    await openControls(page);
     await page.locator('#savedSetups summary').click();
     await page.locator('#shareSetup').click();
     assert.equal(await page.locator('#shareFallback').isVisible(), true);
@@ -282,13 +298,16 @@ test('Listen selects one player; global pause, play and mute affect every player
     await page.locator('.video-wrapper').last().hover();
     await audio.last().click();
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [true, false]);
+    await openControls(page);
     await page.locator('#pauseAll').click();
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.paused)), [true, true]);
     await addId(page, 'dQw4w9WgXcQ');
     await page.waitForFunction(() => [...players.values()].every(r => r.ready));
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.paused)), [true, true, true]);
+    await openControls(page);
     await page.locator('#playAll').click();
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.paused)), [false, false, false]);
+    await openControls(page);
     await page.locator('#muteAll').click();
     assert.deepEqual(await page.evaluate(() => [...players.values()].map(r => r.player.muted)), [true, true, true]);
     assert.equal(await page.locator('.audio-selected').count(), 0);
@@ -372,9 +391,11 @@ test('layout and focus restore; mobile sizing stays inside the viewport; whole g
   const page = await openApp({ viewport: { width: 1440, height: 1000 } });
   try {
     for (const id of ['M7lc1UVf-VE', 'y0sF5xhGreA', 'dQw4w9WgXcQ']) await addId(page, id);
+    await openControls(page);
     await page.locator('#layoutMode').selectOption('two');
     assert.equal(await page.locator('#grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 2);
     const third = page.locator('.video-wrapper').nth(2);
+    await closeControls(page);
     await third.hover();
     await third.locator('.focus-video').click();
     assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'dQw4w9WgXcQ');
@@ -390,8 +411,11 @@ test('layout and focus restore; mobile sizing stays inside the viewport; whole g
     assert.equal(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth), true);
     if (process.env.REVIEW_SCREENSHOTS) await page.screenshot({ path: '/tmp/multiwin-mobile.png', fullPage: true, animations: 'disabled' });
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await openControls(page);
     await page.locator('#gridFullscreen').click();
     await page.waitForFunction(() => document.fullscreenElement?.id === 'viewer');
+    assert.equal(await page.locator('#controlPanel').isVisible(), false);
+    await openControls(page);
     assert.equal(await page.locator('#pauseAll').isVisible(), true);
     await page.evaluate(() => document.exitFullscreen());
   } finally { await page.close(); }
@@ -419,15 +443,18 @@ test('YouTube parsing accepts supported formats, preserves timestamps and reject
 test('mixed batches preserve rejected input and timestamps survive refresh', async () => {
   const page = await openApp();
   try {
+    await openControls(page);
     await page.locator('#urlInput').fill('https://youtube.com/live/M7lc1UVf-VE?t=1m30s\nbad-link\nhttps://youtu.be/y0sF5xhGreA?start=42');
     await page.locator('#urlInput').press('Enter');
     assert.equal(await page.locator('.video-wrapper').count(), 2);
+    assert.equal(await page.locator('#urlInput').isVisible(), true);
     assert.equal(await page.locator('#urlInput').inputValue(), 'bad-link');
     assert.equal(await page.locator('#urlInput').getAttribute('aria-invalid'), 'true');
     assert.match(await page.locator('#inputFeedback').innerText(), /1 link/);
     assert.equal(new URL(await page.locator('iframe').first().getAttribute('src')).searchParams.get('start'), '90');
     await page.reload();
     assert.deepEqual(await page.evaluate(() => getSetup().videos.map(v => v.start)), [90, 42]);
+    await openControls(page);
     await page.locator('#urlInput').fill('dQw4w9WgXcQ');
     await page.locator('#urlInput').press('Shift+Enter');
     assert.equal(await page.locator('.video-wrapper').count(), 2);
@@ -465,7 +492,9 @@ test('touch users can show controls without adding borders or shifting videos', 
     await addId(page, 'y0sF5xhGreA');
     const before = await page.locator('iframe').first().boundingBox();
     assert.equal(await page.locator('.card-tools').first().evaluate(el => getComputedStyle(el).opacity), '0');
+    await openControls(page);
     await page.getByRole('button', { name: 'Show video controls', exact: true }).tap();
+    await closeControls(page);
     assert.equal(await page.locator('#showVideoControls').getAttribute('aria-pressed'), 'true');
     assert.deepEqual(await page.locator('iframe').first().boundingBox(), before);
     for (const button of await page.locator('.video-wrapper').first().locator('button').all()) {
@@ -478,7 +507,9 @@ test('touch users can show controls without adding borders or shifting videos', 
     assert.equal(await page.locator('.video-wrapper').first().evaluate(el => getComputedStyle(el).transitionDuration), '0s');
     await page.locator('.move-later').first().tap();
     assert.equal(await page.locator('.video-wrapper').first().getAttribute('data-video-id'), 'y0sF5xhGreA');
+    await openControls(page);
     await page.getByRole('button', { name: 'Hide video controls', exact: true }).tap();
+    await closeControls(page);
     assert.equal(await page.locator('.card-tools').first().evaluate(el => getComputedStyle(el).opacity), '0');
     assert.equal(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth), true);
   } finally { await page.close(); }
@@ -489,7 +520,9 @@ test('the populated interface has no detected WCAG A/AA violations', async () =>
   try {
     await addId(page, 'M7lc1UVf-VE');
     await page.waitForFunction(() => [...players.values()].every(r => r.ready));
+    await openControls(page);
     await page.locator('#savedSetups summary').click();
+    await openControls(page);
     await page.locator('#showVideoControls').click();
     await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
     const violations = await page.evaluate(async () => (await axe.run(document, {
@@ -518,11 +551,13 @@ test('the drag handle can drop over a video without the iframe swallowing pointe
 test('six streams form a compact 3 by 2 wall with controls revealed by hover and keyboard', async () => {
   const page = await openApp({ viewport: { width: 1920, height: 1080 } });
   try {
+    await openControls(page);
     await page.locator('#urlInput').fill(Array(6).fill('M7lc1UVf-VE').join('\n'));
     await page.locator('#addBtn').click();
     await page.waitForFunction(() => players.size === 6 && [...players.values()].every(r => r.ready));
     const cards = await page.locator('.video-wrapper').all();
     const boxes = await Promise.all(cards.map(card => card.boundingBox()));
+    assert.equal(boxes[0].y, 4);
     assert.equal(boxes[0].y, boxes[2].y);
     assert.equal(boxes[3].y, boxes[5].y);
     assert.equal(boxes[3].x, boxes[0].x);
@@ -537,16 +572,72 @@ test('six streams form a compact 3 by 2 wall with controls revealed by hover and
     await cards[0].locator('.audio-btn').click();
     await page.mouse.move(0, 0);
     assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '0');
-    // Tab from the last toolbar button reaches the first card control.
-    await page.locator('#gridFullscreen').focus();
+    // Tabbing past the floating button skips the closed panel.
+    await page.locator('#togglePanel').focus();
     await page.keyboard.press('Tab');
     assert.equal(await cards[0].locator('.drag-handle').evaluate(el => el === document.activeElement), true);
     assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '1');
     assert.deepEqual(await cards[0].locator('iframe').boundingBox(), frameBox);
+    await openControls(page);
     await page.locator('#showVideoControls').click();
+    await openControls(page);
     await page.locator('#gridFullscreen').click();
     await page.waitForFunction(() => document.fullscreenElement?.id === 'viewer');
     assert.equal(await tools.evaluate(el => getComputedStyle(el).opacity), '1');
     await page.evaluate(() => document.exitFullscreen());
+  } finally { await page.close(); }
+});
+
+
+test('the floating panel keeps draft links and iframe state without shifting the wall', async () => {
+  const page = await openApp({ viewport: { width: 1440, height: 900 } });
+  try {
+    assert.equal(await page.locator('#controlPanel').isVisible(), true);
+    await addId(page, 'M7lc1UVf-VE');
+    assert.equal(await page.locator('#controlPanel').isVisible(), false);
+    assert.equal(await page.locator('#togglePanel').getAttribute('aria-expanded'), 'false');
+    const video = page.locator('iframe');
+    const bounds = await video.boundingBox();
+    assert.equal(bounds.y, 5);
+    const frame = page.frames().find(frame => frame.url().includes('/embed/'));
+    await frame.evaluate(() => window.panelMarker = 'still playing');
+    await openControls(page);
+    await page.locator('#urlInput').fill('a draft I am still editing');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('setupStatus')).opacity === '0', null, { timeout: 8000 });
+    assert.deepEqual(await video.boundingBox(), bounds);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#controlPanel').isVisible(), false);
+    assert.equal(await page.locator('#togglePanel').evaluate(el => el === document.activeElement), true);
+    await openControls(page);
+    assert.equal(await page.locator('#urlInput').inputValue(), 'a draft I am still editing');
+    await closeControls(page);
+    assert.deepEqual(await video.boundingBox(), bounds);
+    assert.equal(await frame.evaluate(() => window.panelMarker), 'still playing');
+    await page.reload();
+    assert.equal(await page.locator('iframe').count(), 1);
+    assert.equal(await page.locator('#controlPanel').isVisible(), false);
+  } finally { await page.close(); }
+});
+
+test('the panel is reachable on a small touchscreen and in grid fullscreen', async () => {
+  const page = await openApp({ viewport: { width: 390, height: 640 }, hasTouch: true, isMobile: true });
+  try {
+    await addId(page, 'M7lc1UVf-VE');
+    await page.locator('#togglePanel').tap();
+    assert.equal(await page.locator('#urlInput').evaluate(el => el === document.activeElement), false);
+    const panel = await page.locator('#controlPanel').boundingBox();
+    assert.ok(panel.x >= 0 && panel.x + panel.width <= 390 && panel.y + panel.height <= 640);
+    await page.locator('#savedSetups summary').tap();
+    await page.locator('#presetName').fill('News wall');
+    await page.locator('#savePreset').tap();
+    assert.equal(await page.locator('#presetSelect option').count(), 2);
+    await page.locator('#gridFullscreen').tap();
+    await page.waitForFunction(() => document.fullscreenElement?.id === 'viewer');
+    assert.equal(await page.locator('#controlPanel').isVisible(), false);
+    await page.locator('#togglePanel').tap();
+    await page.locator('#muteAll').tap();
+    await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).tap();
+    await page.waitForFunction(() => !document.fullscreenElement);
+    assert.equal(await page.locator('#controlPanel').isVisible(), false);
   } finally { await page.close(); }
 });
