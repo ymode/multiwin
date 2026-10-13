@@ -5,7 +5,12 @@ A simple, responsive web application that allows users to watch multiple YouTube
 **[Launch Multiwin →](https://ymode.github.io/multiwin/)** — open the app, paste a
 YouTube link, and start watching. No download or installation required.
 
-![Screenshot 2024-11-06 180450](https://github.com/user-attachments/assets/513b0103-22e5-42b8-a7e2-2852c157181c)
+![Multiwin showing three videos in Focus layout, with shared playback and visible card controls](docs/images/multiwin.jpg)
+
+Screenshot film credits ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)):
+[Big Buck Bunny](https://www.bigbuckbunny.org/) © 2008 Blender Foundation;
+[Sintel](https://durian.blender.org/) © Blender Foundation;
+[Tears of Steel](https://mango.blender.org/) © Blender Foundation.
 
 
 ## Features
