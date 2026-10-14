@@ -184,19 +184,33 @@ This alternative serves the entire current directory, so use a dedicated folder.
 
 ### Static hosting (no Python required)
 
-This repository deploys to GitHub Pages after changes to the app are merged into
-`main`. The **Publish Multiwin** workflow uploads only `index.html`; source,
-tests, and local tools are not included in the website. To set this up in a fork,
-choose **Settings → Pages → Build and deployment → Source: GitHub Actions**,
-then run **Publish Multiwin** from the Actions tab on `main`. Update the launch
-links in this README to the Pages URL for your fork. Feature branches and pull
-requests do not deploy to the public site.
+#### GitHub Pages (recommended for forks)
 
-Upload `index.html` to any static HTTPS host and open its hosted URL. No backend,
-API key, package installation or build is needed. For GitHub Pages, publish the
-repository's root directory using your repository's Pages settings, then use the
-URL GitHub provides. Do not use a GitHub `blob` or `raw` URL as the player page.
-The Python launcher is for local use, not public hosting.
+The [**Publish Multiwin** workflow](.github/workflows/pages.yml) deploys to GitHub
+Pages when changes to `index.html` or the workflow are pushed to `main`, including
+through a merged pull request. The application is self-contained, so the workflow
+copies only `index.html` into `_site` and uploads that directory as the Pages
+artifact. This keeps other source files, tests, documentation, and development
+tools out of the deployed website.
+
+To deploy your fork:
+
+1. Choose **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. From the **Actions** tab, enable workflows if prompted, then select
+   **Publish Multiwin → Run workflow** and run it on `main`.
+3. After deployment succeeds, open the Pages URL shown in your fork's Pages
+   settings and update the launch links in this README to that URL.
+
+Keep GitHub Actions as the Pages source so deployments use the workflow's
+restricted artifact. Feature branches and pull requests do not deploy to the
+public site.
+
+#### Other static HTTPS hosts
+
+Upload only `index.html` to your static HTTPS host and open its hosted URL. No
+backend, API key, package installation, or build is needed. Do not use a GitHub
+`blob` or `raw` URL as the player page. The Python launcher is for local use, not
+public hosting.
 
 ### Error 153 troubleshooting
 
